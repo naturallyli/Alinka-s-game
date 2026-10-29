@@ -193,22 +193,23 @@ kbd { font-family: var(--body); background: var(--cloud); border-radius: 5px; pa
    Everything that makes the game "the game" lives in CONFIG below.
    To evolve it: add a task, a friend, words, or a new mini-game type.
    ===================================================================== */
-const GAME_VERSION = 6; // shown in the grown-up corner
+const GAME_VERSION = 7; // shown in the grown-up corner
 const DESK = [-6, -8.05], STOVE = [8, -0.35];
 const CONFIG = {
   repeatFactor: 0.3,      // doing a task again on the same day gives 30% of the points
   playCost: 10,           // stars it costs to play with a friend
   maxHearts: 5,
-  // ick: 1 (easy peasy) .. 5 (super icky). Ickier tasks give more points.
+  // Studying gives the most stars. Among chores, ickier ones give more.
+  // ick: 1 (easy peasy) .. 5 (super icky).
   tasks: [
     { id: 'room',   name: 'Clean up my messy room',   icon: '🧸', ick: 5, points: 60, game: 'carry', items: 'mess',  drop: [-2, -8.3], where: 'Bedroom', dropName: 'the toy box' },
     { id: 'trash',  name: 'Take out the stinky trash', icon: '🗑️', ick: 5, points: 55, game: 'carry', items: 'trash', drop: [6, 8.7],  where: 'Kitchen → garden bin', dropName: 'the green bin outside' },
     { id: 'table',  name: 'Wipe the sticky table',     icon: '🧽', ick: 4, points: 45, game: 'wipe',  at: [0, 3.45],  where: 'Kitchen' },
     { id: 'teeth',  name: 'Brush my teeth',            icon: '🪥', ick: 3, points: 35, game: 'teeth', at: [4, -8.5],  where: 'Bathroom' },
-    { id: 'math',   name: 'Maths : × et :',            icon: '🔢', ick: 3, points: 35, game: 'quiz', subject: 'math', at: DESK, where: 'Study desk' },
-    { id: 'french', name: 'Français : conjugaison et GN', icon: '🥐', ick: 3, points: 35, game: 'quiz', subject: 'francais', at: DESK, where: 'Study desk' },
-    { id: 'english',name: 'English words',             icon: '💂', ick: 2, points: 25, game: 'quiz', lang: 'en', at: DESK, where: 'Study desk' },
-    { id: 'german', name: 'German words',              icon: '🥨', ick: 2, points: 25, game: 'quiz', lang: 'de', at: DESK, where: 'Study desk' },
+    { id: 'math',   name: 'Maths : × et :',            icon: '🔢', ick: 3, points: 80, game: 'quiz', subject: 'math', at: DESK, where: 'Study desk' },
+    { id: 'french', name: 'Français : conjugaison et GN', icon: '🥐', ick: 3, points: 80, game: 'quiz', subject: 'francais', at: DESK, where: 'Study desk' },
+    { id: 'english',name: 'English words',             icon: '💂', ick: 2, points: 70, game: 'quiz', lang: 'en', at: DESK, where: 'Study desk' },
+    { id: 'german', name: 'German words',              icon: '🥨', ick: 2, points: 70, game: 'quiz', lang: 'de', at: DESK, where: 'Study desk' },
     { id: 'dishes', name: 'Wash the greasy dishes',   icon: '🍽️', ick: 4, points: 40, game: 'wipe', variant: 'dishes', at: [10.2, -0.35], where: 'Kitchen sink' },
     { id: 'pancakes', name: 'Make pancakes',           icon: '🥞', ick: 2, points: 30, game: 'pancake', at: STOVE, where: 'Kitchen stove', food: '🥞' },
     { id: 'cupcakes', name: 'Bake cupcakes',           icon: '🧁', ick: 2, points: 35, game: 'bake', at: STOVE, where: 'Kitchen stove', food: '🧁' },
@@ -218,7 +219,7 @@ const CONFIG = {
   ],
   // places that hold several tasks get a menu
   stationInfo: {
-    [DESK.join()]:  { icon: '📚', label: 'Study time', sub: 'Maths · Français · English · Deutsch', title: 'What do you want to study?', hint: 'Each subject gives stars. Getting them right gives the most!' },
+    [DESK.join()]:  { icon: '📚', label: 'Study time', sub: 'Maths · Français · English · Deutsch', title: 'What do you want to study?', hint: 'Studying gives the most stars of all. Every right answer counts!' },
     [STOVE.join()]: { icon: '🍳', label: 'Cooking time', sub: 'Pancakes · Cupcakes · Fruit salad', title: 'What shall we cook?', hint: 'Cook something yummy. It will appear on the kitchen table!' },
   },
   friends: [
@@ -1512,8 +1513,8 @@ function stationFor(t) { return stations.find((s) => s.tasks.includes(t)); }
 $('btnTasks').addEventListener('click', () => {
   snd('pop');
   const el = openOv("Alinka's tasks today");
-  const sorted = CONFIG.tasks.slice().sort((a, b) => (state.done[a.id] > 0) - (state.done[b.id] > 0) || b.ick - a.ick);
-  el.innerHTML = `<p class="legend">🤢 = how icky it is. Ickier jobs give more stars!</p><div class="tasklist">${sorted.map((t) => {
+  const sorted = CONFIG.tasks.slice().sort((a, b) => (state.done[a.id] > 0) - (state.done[b.id] > 0) || b.points - a.points);
+  el.innerHTML = `<p class="legend">📚 Studying gives the most stars! For chores, 🤢 shows how icky it is: ickier jobs give more.</p><div class="tasklist">${sorted.map((t) => {
     const d = state.done[t.id] > 0;
     return `<div class="trow ${d ? 'done' : ''}"><span>${t.icon}</span><div class="nm">${t.name}<small>${t.where} · ${d ? '✅ done' : '+' + t.points + ' ⭐'} · ${'🤢'.repeat(t.ick)}</small></div>
       ${d && t.game === 'carry' ? '' : `<button data-t="${t.id}">Show me</button>`}</div>`;
@@ -1577,7 +1578,7 @@ function openParent() {
 function intro() {
   const el = openOv('Hi! I’m Alinka ☁️');
   el.innerHTML = `<p>I have a busy day: school work, brushing my teeth, packing my bag… and my room is a <b>huge</b> mess. Oops.</p>
-    <p>Every job gives me stars ⭐. The <b>ickier</b> the job, the more stars! 🤢</p>
+    <p>Every job gives me stars ⭐. <b>Studying</b> gives the most stars! 📚 For chores, the <b>ickier</b> the job, the more stars. 🤢</p>
     <p>I can also cook pancakes, cupcakes and fruit salad in the kitchen. 🥞</p>
     <p>With stars I can make friends in the garden: Capy, Nutty the squirrel, the Bat trio and Kuromi, and play games with them.</p>
     <p class="hint">Walk: W A S D or arrow keys (on a tablet, the left circle). Look around: drag the screen. Do a job: walk to a glowing ring and press E or the yellow button. 📋 shows all tasks.</p>
