@@ -12,5 +12,8 @@ Progress is saved on the device. Grown-ups can back it up from the grown-up corn
 
 ## Changing the game
 
-Everything is in `index.html`. Tasks, star values, friends and vocabulary are in the `CONFIG` block near the top of the game script.
-After an update, change `VERSION` in `sw.js` so devices pick up the new version.
+The game's source is `src/game.html`. Tasks, star values, friends and vocabulary are in the `CONFIG` block near the top of its script.
+
+After a change:
+1. Run `python3 build.py`. It rebuilds `index.html` (the home-screen app) and `alinka-offline.html` (a single file that works without internet).
+2. Change `VERSION` in `sw.js`, so phones pick up the new version.

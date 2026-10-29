@@ -312,7 +312,8 @@ function confetti() {
 
 /* ======================= 3D WORLD ======================= */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const PHONE = window.matchMedia('(pointer: coarse)').matches; // lighter graphics on phones and tablets
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, PHONE ? 1.5 : 2));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('stage').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
@@ -322,7 +323,7 @@ const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
 scene.add(new THREE.HemisphereLight('#ffffff', '#ffd9ec', 0.5));
 const sun = new THREE.DirectionalLight('#fff3df', 0.5);
 sun.position.set(14, 30, 20); sun.target.position.set(0, 0, 8); scene.add(sun.target);
-sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 90 });
 sun.shadow.bias = -0.0005; scene.add(sun);
 
@@ -732,6 +733,8 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const cv = renderer.domElement;
+// Phones can drop the 3D picture when memory runs low. Progress is saved, so just start again.
+cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); hint('The picture got lost. Restarting…', 4000); setTimeout(() => location.reload(), 1500); });
 let drag = null;
 cv.addEventListener('pointerdown', (e) => { drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
 cv.addEventListener('pointermove', (e) => {
@@ -1132,7 +1135,7 @@ GAMES.chop = (t, el, done) => {
   el.innerHTML = `<p class="hint">Swipe across the fruit to chop it into the salad! Don't chop the wiggly worms 🐛, yuck!</p><canvas class="fg" width="600" height="420"></canvas><p class="sub" id="fgs"></p>`;
   const c = el.querySelector('canvas'), g = c.getContext('2d');
   let items = [], halves = [], fx = [], trail = [], score = 0, worms = 0, down = false, spawnT = 0, raf, over = false;
-  const t0 = performance.now(); let last = t0;
+  let t0 = null, last = null;
   const pos = (e) => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * (600 / r.width), (e.clientY - r.top) * (420 / r.height)]; };
   const cut = (x, y) => {
     for (const it of items) {
@@ -1153,6 +1156,7 @@ GAMES.chop = (t, el, done) => {
   const up = () => (down = false); c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
   const loop = (now) => {
     if (over) return;
+    if (t0 === null) t0 = last = now; // time from the animation clock itself (Safari's can differ from performance.now)
     const dt = Math.min(0.05, (now - last) / 1000); last = now; const el2 = (now - t0) / 1000;
     spawnT -= dt; if (spawnT <= 0) { spawnT = rnd(0.55, 0.95); const x = rnd(90, 510); items.push({ x, y: 450, vx: (300 - x) * rnd(0.2, 0.5), vy: -rnd(560, 660), worm: Math.random() < 0.18, e: pick(FRUIT) }); }
     const grad = g.createLinearGradient(0, 0, 0, 420); grad.addColorStop(0, '#ffe7c7'); grad.addColorStop(1, '#f6cf9f'); g.fillStyle = grad; g.fillRect(0, 0, 600, 420);
@@ -1280,12 +1284,13 @@ function canvasGame(el, f, text) {
 }
 FGAMES.catch = (f, el, done) => {
   const G = canvasGame(el, f, `Catch the ${f.game.item} and dodge the ${f.game.bad}. Move with your finger, the mouse, or ← →.`), TIME = 25;
-  let x = 300, score = 0, items = [], last = performance.now(), spawnT = 0, t0 = last, over = false, raf, fx = [];
+  let x = 300, score = 0, items = [], last = null, spawnT = 0, t0 = null, over = false, raf, fx = [];
   const mv = (e) => { x = G.pos(e)[0]; };
   G.c.addEventListener('pointermove', mv); G.c.addEventListener('pointerdown', mv);
   const kd = (e) => { if (e.code === 'ArrowLeft' || e.code === 'KeyA') x -= 40; if (e.code === 'ArrowRight' || e.code === 'KeyD') x += 40; };
   addEventListener('keydown', kd);
   const loop = (now) => {
+    if (t0 === null) t0 = last = now; // time from the animation clock itself (Safari's can differ from performance.now)
     const dt = Math.min(0.05, (now - last) / 1000); last = now; const el2 = (now - t0) / 1000;
     spawnT -= dt; if (spawnT <= 0) { spawnT = rnd(0.45, 0.8); items.push({ x: rnd(30, 570), y: -20, v: rnd(140, 220) + el2 * 6, bad: Math.random() < 0.22 }); }
     x = Math.max(40, Math.min(560, x));
@@ -1303,13 +1308,14 @@ FGAMES.catch = (f, el, done) => {
 };
 FGAMES.pop = (f, el, done) => {
   const G = canvasGame(el, f, `Tap the ${f.game.item} before they hide again!`), TIME = 25;
-  let score = 0, items = [], last = performance.now(), t0 = last, spawnT = 0, over = false, raf;
+  let score = 0, items = [], last = null, t0 = null, spawnT = 0, over = false, raf;
   G.c.addEventListener('pointerdown', (e) => {
     const [px, py] = G.pos(e);
     const hit = items.find((it) => Math.hypot(it.x - px, it.y - py) < 42 && !it.got);
     if (hit) { hit.got = true; hit.life = 0.25; score++; snd('coin'); }
   });
   const loop = (now) => {
+    if (t0 === null) t0 = last = now; // time from the animation clock itself (Safari's can differ from performance.now)
     const dt = Math.min(0.05, (now - last) / 1000); last = now; const el2 = (now - t0) / 1000;
     spawnT -= dt; if (spawnT <= 0) { spawnT = rnd(0.35, 0.7); items.push({ x: rnd(50, 550), y: rnd(60, 380), life: Math.max(0.8, 1.6 - el2 * 0.03), age: 0 }); }
     const g = G.g; g.fillStyle = G.grad; g.fillRect(0, 0, 600, 420);
@@ -1421,6 +1427,7 @@ addEventListener('resize', resize);
 
 function tick() {
   requestAnimationFrame(tick);
+  if (paused) { clock.getDelta(); return; } // the world waits while a card is open, so mini-games run smoothly
   const dt = Math.min(0.05, clock.getDelta()); T += dt;
   // movement
   let ix = 0, iy = 0;
@@ -1514,6 +1521,8 @@ function tick() {
 }
 
 /* ======================= BOOT ======================= */
+// If something breaks, say so on screen instead of showing a blank page.
+addEventListener('error', (e) => { try { hint('Oops, something went wrong: ' + (e.message || 'unknown error'), 9000); } catch (_) {} });
 function boot(data) {
   if (data && data.state) state = migrate(data.state);
   if (data && typeof data.px === 'number') { player.x = data.px; player.z = data.pz; camYaw = data.yaw || 0; }
