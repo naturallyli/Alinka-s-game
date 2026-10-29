@@ -79,6 +79,8 @@ kbd { font-family: var(--body); background: var(--cloud); border-radius: 5px; pa
 .q { text-align: center; }
 .q .prompt { font-family: var(--display); font-size: 44px; font-weight: 800; margin: 6px 0 4px; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .q .prompt.emoji { font-size: 84px; }
+.q .prompt.long { font-size: 24px; font-weight: 700; text-wrap: balance; }
+.q .why { min-height: 24px; margin: 10px 0 0; font-weight: 800; color: #d9506f; }
 .q .ask { font-weight: 700; color: var(--ink-soft); }
 .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
 .opts button { background: #eef4fc; font-size: 22px; padding: 14px 8px; border-radius: 18px; box-shadow: 0 4px 0 var(--line); min-width: 0; overflow-wrap: anywhere; }
@@ -218,8 +220,8 @@ const CONFIG = {
     { id: 'trash',  name: 'Take out the stinky trash', icon: '🗑️', ick: 5, points: 55, game: 'carry', items: 'trash', drop: [6, 8.7],  where: 'Kitchen → garden bin', dropName: 'the green bin outside' },
     { id: 'table',  name: 'Wipe the sticky table',     icon: '🧽', ick: 4, points: 45, game: 'wipe',  at: [0, 3.45],  where: 'Kitchen' },
     { id: 'teeth',  name: 'Brush my teeth',            icon: '🪥', ick: 3, points: 35, game: 'teeth', at: [4, -8.5],  where: 'Bathroom' },
-    { id: 'math',   name: 'Math practice',             icon: '🔢', ick: 2, points: 25, game: 'quiz', subject: 'math', at: DESK, where: 'Study desk' },
-    { id: 'french', name: 'French words',              icon: '🥐', ick: 2, points: 25, game: 'quiz', lang: 'fr', at: DESK, where: 'Study desk' },
+    { id: 'math',   name: 'Maths : × et :',            icon: '🔢', ick: 3, points: 35, game: 'quiz', subject: 'math', at: DESK, where: 'Study desk' },
+    { id: 'french', name: 'Français : conjugaison et GN', icon: '🥐', ick: 3, points: 35, game: 'quiz', subject: 'francais', at: DESK, where: 'Study desk' },
     { id: 'english',name: 'English words',             icon: '💂', ick: 2, points: 25, game: 'quiz', lang: 'en', at: DESK, where: 'Study desk' },
     { id: 'german', name: 'German words',              icon: '🥨', ick: 2, points: 25, game: 'quiz', lang: 'de', at: DESK, where: 'Study desk' },
     { id: 'dishes', name: 'Wash the greasy dishes',   icon: '🍽️', ick: 4, points: 40, game: 'wipe', variant: 'dishes', at: [10.2, -0.35], where: 'Kitchen sink' },
@@ -231,7 +233,7 @@ const CONFIG = {
   ],
   // places that hold several tasks get a menu
   stationInfo: {
-    [DESK.join()]:  { icon: '📚', label: 'Study time', sub: 'Math · French · English · German', title: 'What do you want to study?', hint: 'Each subject gives stars. Getting them right gives the most!' },
+    [DESK.join()]:  { icon: '📚', label: 'Study time', sub: 'Maths · Français · English · Deutsch', title: 'What do you want to study?', hint: 'Each subject gives stars. Getting them right gives the most!' },
     [STOVE.join()]: { icon: '🍳', label: 'Cooking time', sub: 'Pancakes · Cupcakes · Fruit salad', title: 'What shall we cook?', hint: 'Cook something yummy. It will appear on the kitchen table!' },
   },
   friends: [
@@ -856,50 +858,203 @@ function award(t, frac, note) {
 const GAMES = {};
 
 GAMES.quiz = (t, el, done) => {
-  const qs = t.subject === 'math' ? mathQuestions(5, state.mathLevel) : vocabQuestions(5, t.lang);
+  const qs = t.subject === 'math' ? mathQuestions(6, state.mathLevel) : t.subject === 'francais' ? frenchQuestions(6) : vocabQuestions(5, t.lang);
   let i = 0, right = 0, locked = false;
   const results = [];
   const draw = () => {
     const q = qs[i];
     el.innerHTML = `<div class="q"><div class="dots">${qs.map((_, k) => `<i class="${k < i ? (results[k] ? 'ok' : 'no') : k === i ? 'now' : ''}"></i>`).join('')}</div>
-      <p class="ask">${q.ask}</p><div class="prompt ${q.emoji ? 'emoji' : ''}">${q.prompt}</div>
-      <div class="opts">${q.opts.map((o, k) => `<button data-k="${k}">${o}</button>`).join('')}</div></div>
-      ${t.subject === 'math' ? `<p class="sub">Math level ${state.mathLevel} of 5</p>` : ''}`;
+      <p class="ask">${q.ask}</p><div class="prompt ${q.emoji ? 'emoji' : ''} ${q.long ? 'long' : ''}">${q.prompt}</div>
+      <div class="opts">${q.opts.map((o, k) => `<button data-k="${k}">${o}</button>`).join('')}</div><p class="why" id="qwhy"></p></div>
+      ${t.subject === 'math' ? `<p class="sub">Niveau ${state.mathLevel} sur 5</p>` : ''}`;
     el.querySelectorAll('.opts button').forEach((b) => b.addEventListener('click', () => {
       if (locked) return; locked = true;
       const k = +b.dataset.k, ok = q.opts[k] === q.answer; results.push(ok); if (ok) right++;
       b.classList.add(ok ? 'right' : 'wrong');
       el.querySelectorAll('.opts button').forEach((bb) => { if (q.opts[+bb.dataset.k] === q.answer) bb.classList.add('right'); });
+      if (!ok && q.why) $('qwhy').textContent = q.why;
       snd(ok ? 'coin' : 'bad'); if (q.say) speak(q.say, q.voice);
-      setTimeout(() => { locked = false; i++; if (i < qs.length) draw(); else finish(); }, ok ? 900 : 1700);
+      setTimeout(() => { locked = false; i++; if (i < qs.length) draw(); else finish(); }, ok ? 900 : (q.why ? 2800 : 1700));
     }));
   };
   const finish = () => {
-    if (t.subject === 'math') { if (right >= 4) state.mathLevel = Math.min(5, state.mathLevel + 1); else if (right <= 2) state.mathLevel = Math.max(1, state.mathLevel - 1); }
-    done(right / qs.length, `${right} of ${qs.length} right!`);
+    if (t.subject === 'math') { if (right >= 5) state.mathLevel = Math.min(5, state.mathLevel + 1); else if (right <= 2) state.mathLevel = Math.max(1, state.mathLevel - 1); }
+    done(right / qs.length, `${right} sur ${qs.length} juste${right > 1 ? 's' : ''} !`);
   };
   draw();
 };
 function choices(answer, wrongs) { return shuffle([answer, ...shuffle([...new Set(wrongs.filter((w) => w !== answer))]).slice(0, 3)]); }
+// like choices(), but keeps the order of the wrong answers (most useful first)
+function choicesOrdered(answer, wrongs) { return shuffle([answer, ...[...new Set(wrongs.filter((w) => w && w !== answer))].slice(0, 3)]); }
+
+/* ---- maths, 6P (PER) ---- */
+const fmtN = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); // 12 000, written the Swiss school way
+function numQ(prompt, a, extra = [], ask = 'Calcule :', long = false) {
+  const near = [a + 1, a - 1, a + 10, a - 10, a + ri(2, 4), a - ri(2, 4)];
+  return { ask, prompt, long, answer: fmtN(a), opts: choicesOrdered(a, [...shuffle(extra), ...shuffle(near)].filter((w) => w >= 0)).map(fmtN), why: `Réponse : ${fmtN(a)}` };
+}
+const MATH = {
+  table: () => { const x = ri(3, 10), y = ri(3, 10); return numQ(`${x} × ${y}`, x * y, [x * (y + 1), x * (y - 1), (x + 1) * y]); },
+  divTable: () => { const x = ri(3, 10), y = ri(3, 10); return numQ(`${fmtN(x * y)} : ${x}`, y, [y + 1, y - 1, x]); },
+  missing: () => { const x = ri(3, 10), y = ri(3, 10); return numQ(`? × ${x} = ${x * y}`, y, [y + 1, y - 1, x * y - x], 'Quel nombre manque ?'); },
+  by10: () => { const x = ri(3, 99), m = pick([10, 100, 1000]); return numQ(`${x} × ${fmtN(m)}`, x * m, [x * m * 10, x * m / 10]); },
+  div10: () => { const m = pick([10, 100]), x = ri(2, 99) * m; return numQ(`${fmtN(x)} : ${m}`, x / m, [x / m * 10, Math.round(x / m / 10)]); },
+  twoByOne: () => { const x = ri(13, 99), y = ri(3, 9); return numQ(`${x} × ${y}`, x * y, [x * y + 10, x * y - 10, (x % 10) * y + Math.floor(x / 10) * 10]); },
+  threeByOne: () => { const x = ri(105, 999), y = ri(3, 9); return numQ(`${x} × ${y}`, x * y, [x * y + 100, x * y - 100, x * y + 10]); },
+  tens: () => { const x = ri(12, 49), y = ri(2, 9) * 10; return numQ(`${x} × ${y}`, x * y, [x * y / 10, x * y * 10, x * y + y]); },
+  twoByTwo: () => { const x = ri(12, 49), y = ri(12, 39); return numQ(`${x} × ${y}`, x * y, [x * (y % 10) + x * 10, x * y + 10, x * y - x]); },
+  divExact: (big) => { const y = ri(3, 9), q = big ? ri(25, 160) : ri(12, 30); return numQ(`${fmtN(q * y)} : ${y}`, q, [q + 1, q - 1, q + 10]); },
+  divRem: (big) => {
+    const y = ri(3, 9), q = big ? ri(12, 120) : ri(3, 12), r = ri(1, y - 1), n = q * y + r, ans = `${q} reste ${r}`;
+    const wr = [`${q} reste ${r === y - 1 ? r - 1 : r + 1}`, `${q + 1} reste ${r}`, `${q - 1} reste ${r + y}`, `${q} reste 0`];
+    return { ask: 'Division avec reste :', prompt: `${fmtN(n)} : ${y}`, answer: ans, opts: choicesOrdered(ans, wr), why: `${fmtN(q)} × ${y} = ${fmtN(q * y)}, et il reste ${r}.` };
+  },
+  fraction: () => { const d = pick([2, 3, 4, 5, 10]), k = pick([1, 2, 3, 4, 5, 6, 7, 8, 9].filter((x) => x < d && (d % x || x === 1) && !(d === 10 && x === 5) && !(d === 4 && x === 2) && !(d === 10 && x % 2 === 0))), base = ri(2, 12) * d, a = (base / d) * k; return numQ(`${k}/${d} de ${base}`, a, [base / d, base - a, a + base / d], 'Calcule :'); },
+  multiple: () => {
+    const m = ri(3, 9), good = m * ri(4, 12), bad = []; for (let x = good - 7; x <= good + 7; x++) if (x % m && x > 0) bad.push(x);
+    return { ask: 'Trouve le bon nombre :', prompt: `Lequel est un multiple de ${m} ?`, long: true, answer: String(good), opts: choices(good, shuffle(bad).slice(0, 3)).map(String), why: `${good} = ${m} × ${good / m}` };
+  },
+  word: () => pick([
+    () => { const a = ri(12, 36), b = ri(3, 9); return numQ(`Un paquet contient ${a} biscuits. Combien de biscuits y a-t-il dans ${b} paquets ?`, a * b, [a + b, a * b + 10], 'Problème :', true); },
+    () => { const b = ri(3, 6), q = ri(4, 8); return numQ(`${b * q} élèves font des équipes de ${b}. Combien y a-t-il d’équipes ?`, q, [q + 1, b * q - b], 'Problème :', true); },
+    () => { const a = ri(3, 9), b = ri(12, 30); return numQ(`Un ticket de bus coûte ${a} francs. Combien coûtent ${b} tickets ?`, a * b, [a + b, a * b - a], 'Problème :', true); },
+    () => { const b = ri(3, 8), q = ri(6, 15); return numQ(`On partage ${b * q} bonbons entre ${b} amis. Combien de bonbons chacun reçoit-il ?`, q, [q + 1, q - 1, b * q - b], 'Problème :', true); },
+    () => { const a = ri(8, 25), b = ri(5, 9); return numQ(`Alinka lit ${a} pages par jour. Combien de pages lit-elle en ${b} jours ?`, a * b, [a + b, a * b + a], 'Problème :', true); },
+  ])(),
+};
+const MATH_LEVELS = {
+  1: ['table', 'table', 'divTable', 'missing'],
+  2: ['table', 'divTable', 'missing', 'by10', 'div10'],
+  3: ['twoByOne', 'divExact', 'divRem', 'by10', 'missing', 'fraction'],
+  4: ['threeByOne', 'tens', 'divExactBig', 'divRem', 'fraction', 'word', 'multiple'],
+  5: ['twoByTwo', 'threeByOne', 'divRemBig', 'divExactBig', 'word', 'multiple', 'fraction'],
+};
 function mathQuestions(n, lvl) {
-  const out = [];
+  const kinds = MATH_LEVELS[lvl] || MATH_LEVELS[1], order = shuffle(kinds), out = [];
   for (let k = 0; k < n; k++) {
-    let p, a;
-    const type = pick({ 1: ['+', '-', 'x'], 2: ['+', '-', 'x', 'x'], 3: ['+', '-', 'x', '÷'], 4: ['+', '-', 'x', '÷', 'half'], 5: ['xx', '÷', 'half', 'order', '-'] }[lvl]);
-    if (type === '+') { const m = [0, 20, 100, 100, 1000, 1000][lvl]; const x = ri(1, m * 0.6), y = ri(1, m - x); p = `${x} + ${y}`; a = x + y; }
-    else if (type === '-') { const m = [0, 20, 100, 100, 1000, 1000][lvl]; const x = ri(m * 0.3, m), y = ri(1, x); p = `${x} − ${y}`; a = x - y; }
-    else if (type === 'x') { const x = lvl === 1 ? pick([2, 5, 10]) : ri(2, lvl === 2 ? 5 : 10), y = ri(1, 10); p = `${x} × ${y}`; a = x * y; }
-    else if (type === '÷') { const x = ri(2, 10), y = ri(1, 10); p = `${x * y} ÷ ${x}`; a = y; }
-    else if (type === 'half') { const x = ri(5, 60) * 2; p = `½ of ${x}`; a = x / 2; }
-    else if (type === 'xx') { const x = ri(11, 25), y = ri(2, 9); p = `${x} × ${y}`; a = x * y; }
-    else { const x = ri(2, 9), y = ri(2, 9), z = ri(1, 20); p = `${z} + ${x} × ${y}`; a = z + x * y; }
-    const spread = Math.max(3, Math.round(a * 0.15));
-    const wr = []; for (let w = 0; w < 12; w++) wr.push(Math.max(0, a + ri(-spread, spread)));
-    wr.push(a + 10, Math.max(0, a - 10), a + 1);
-    out.push({ ask: 'How much is…', prompt: p, answer: String(a), opts: choices(a, wr).map(String) });
+    const kind = k < order.length ? order[k] : pick(kinds); // every kind once, then random ones
+    out.push(kind === 'divExactBig' ? MATH.divExact(true) : kind === 'divRemBig' ? MATH.divRem(true) : MATH[kind]());
   }
-  out.forEach((q) => { q.answer = String(q.answer); });
-  return out;
+  return shuffle(out);
+}
+
+/* ---- français, 6P (PER): conjugaison, GN, homophones ---- */
+const ETRE_P = ['suis', 'es', 'est', 'sommes', 'êtes', 'sont'], AVOIR_P = ['ai', 'as', 'a', 'avons', 'avez', 'ont'];
+const VERBS_IRR = {
+  'être': { p: ETRE_P, i: 'ét', f: 'ser', pp: 'été' },
+  'avoir': { p: AVOIR_P, i: 'av', f: 'aur', pp: 'eu' },
+  'aller': { p: ['vais', 'vas', 'va', 'allons', 'allez', 'vont'], i: 'all', f: 'ir', pp: 'allé', etre: true },
+  'faire': { p: ['fais', 'fais', 'fait', 'faisons', 'faites', 'font'], i: 'fais', f: 'fer', pp: 'fait' },
+  'dire': { p: ['dis', 'dis', 'dit', 'disons', 'dites', 'disent'], i: 'dis', f: 'dir', pp: 'dit' },
+  'venir': { p: ['viens', 'viens', 'vient', 'venons', 'venez', 'viennent'], i: 'ven', f: 'viendr', pp: 'venu', etre: true },
+  'prendre': { p: ['prends', 'prends', 'prend', 'prenons', 'prenez', 'prennent'], i: 'pren', f: 'prendr', pp: 'pris' },
+  'pouvoir': { p: ['peux', 'peux', 'peut', 'pouvons', 'pouvez', 'peuvent'], i: 'pouv', f: 'pourr', pp: 'pu' },
+  'vouloir': { p: ['veux', 'veux', 'veut', 'voulons', 'voulez', 'veulent'], i: 'voul', f: 'voudr', pp: 'voulu' },
+  'voir': { p: ['vois', 'vois', 'voit', 'voyons', 'voyez', 'voient'], i: 'voy', f: 'verr', pp: 'vu' },
+  'partir': { p: ['pars', 'pars', 'part', 'partons', 'partez', 'partent'], i: 'part', f: 'partir', pp: 'parti', etre: true },
+  'mettre': { p: ['mets', 'mets', 'met', 'mettons', 'mettez', 'mettent'], i: 'mett', f: 'mettr', pp: 'mis' },
+};
+const VERBS_1 = ['chanter', 'jouer', 'manger', 'parler', 'aimer', 'danser', 'regarder', 'nager', 'commencer', 'ranger', 'écouter', 'dessiner'];
+const VERBS_2 = ['finir', 'choisir', 'grandir', 'réussir', 'remplir'];
+const ALL_VERBS = [...Object.keys(VERBS_IRR), ...VERBS_1, ...VERBS_2];
+const TENSES = ['présent', 'imparfait', 'futur simple', 'passé composé'];
+const TENSE_AU = { 'présent': 'au présent', 'imparfait': 'à l’imparfait', 'futur simple': 'au futur simple', 'passé composé': 'au passé composé' };
+const TENSE_HINT = { 'présent': '', 'imparfait': ' (-ais, -ais, -ait, -ions, -iez, -aient)', 'futur simple': ' (-ai, -as, -a, -ons, -ez, -ont)', 'passé composé': ' (avoir ou être + participe passé)' };
+function verbData(v) {
+  if (VERBS_IRR[v]) return VERBS_IRR[v];
+  const s = v.slice(0, -2);
+  if (VERBS_2.includes(v)) return { p: [s + 'is', s + 'is', s + 'it', s + 'issons', s + 'issez', s + 'issent'], i: s + 'iss', f: v, pp: s + 'i' };
+  const nous = s.endsWith('g') ? s + 'e' : s.endsWith('c') ? s.slice(0, -1) + 'ç' : s; // mangeons, commençons
+  return { p: [s + 'e', s + 'es', s + 'e', nous + 'ons', s + 'ez', s + 'ent'], i: nous, f: v, pp: s + 'é' };
+}
+function conjugate(v, tense) {
+  const d = verbData(v);
+  if (tense === 'présent') return d.p;
+  if (tense === 'imparfait') return ['ais', 'ais', 'ait', 'ions', 'iez', 'aient'].map((e, k) => {
+    let st = d.i; if (k === 3 || k === 4) { if (st.endsWith('ge')) st = st.slice(0, -1); if (st.endsWith('ç')) st = st.slice(0, -1) + 'c'; } return st + e; // mangeais / mangions
+  });
+  if (tense === 'futur simple') return ['ai', 'as', 'a', 'ons', 'ez', 'ont'].map((e) => d.f + e);
+  return (d.etre ? ETRE_P : AVOIR_P).map((a, k) => `${a} ${d.pp}${d.etre && k >= 3 ? 's' : ''}`);
+}
+const PRONS = [['je'], ['tu'], ['il', 'elle', 'on'], ['nous'], ['vous'], ['ils', 'elles']];
+// with être in the passé composé, keep il/ils so the participle needs no feminine ending
+function pronoun(k, tense, v) { return tense === 'passé composé' && verbData(v).etre ? PRONS[k][0] : pick(PRONS[k]); }
+const withPron = (pr, form) => (pr === 'je' && /^[aeiouéèêh]/i.test(form) ? 'j’' + form : pr + ' ' + form);
+const FR = 'fr-FR';
+const FRENCH = {
+  conj: () => {
+    const v = pick(ALL_VERBS), tense = pick(TENSES), k = ri(0, 5), forms = conjugate(v, tense), ans = forms[k], pr = pronoun(k, tense, v);
+    const others = TENSES.filter((x) => x !== tense).map((x) => conjugate(v, x)[k]);
+    const wrong = [...shuffle(forms.filter((_, j) => j !== k)).slice(0, 2), ...shuffle(others)];
+    return { ask: `Conjugue « ${v} » ${TENSE_AU[tense]} :`, prompt: `${pr} …`, answer: ans, opts: choicesOrdered(ans, wrong), why: `${withPron(pr, ans)} (${v}, ${tense})`, say: withPron(pr, ans), voice: FR };
+  },
+  tense: () => {
+    const v = pick(ALL_VERBS), tense = pick(TENSES), k = ri(0, 5), pr = pronoun(k, tense, v), f = withPron(pr, conjugate(v, tense)[k]);
+    return { ask: 'À quel temps est ce verbe ?', prompt: `« ${f} »`, answer: tense, opts: shuffle(TENSES.slice()), why: `${f} : ${tense}${TENSE_HINT[tense]}`, say: f, voice: FR };
+  },
+  infinitive: () => {
+    const v = pick(ALL_VERBS), tense = pick(TENSES), k = ri(0, 5), pr = pronoun(k, tense, v), f = withPron(pr, conjugate(v, tense)[k]);
+    const similar = ALL_VERBS.filter((w) => w !== v && w[0] === v[0]);
+    return { ask: 'Quel est l’infinitif de ce verbe ?', prompt: `« ${f} »`, answer: v, opts: choicesOrdered(v, [...shuffle(similar), ...shuffle(ALL_VERBS)]), why: `${f} : verbe « ${v} »`, say: f, voice: FR };
+  },
+  gnSubject: () => {
+    const g = makeGN(true), vp = `${g.pl ? g.verb[1] : g.verb[0]} ${g.compl}`, GN = cap(g.text);
+    const noDet = g.words.slice(1).join(' ');
+    return { ask: 'Quel est le groupe nominal sujet ?', prompt: `${GN} ${vp}.`, long: true, answer: GN, opts: choicesOrdered(GN, [vp, g.compl, noDet, `${GN} ${g.pl ? g.verb[1] : g.verb[0]}`]), why: `Le GN sujet : « ${GN} » (on peut dire : « C’est ${g.text} qui ${g.pl ? g.verb[1] : g.verb[0]} »).`, say: `${GN} ${vp}.`, voice: FR };
+  },
+  gnNoyau: () => {
+    const g = makeGN();
+    return { ask: 'Quel est le nom noyau de ce GN ?', prompt: `« ${g.text} »`, answer: g.noun, opts: choicesOrdered(g.noun, shuffle(g.words.filter((w) => w !== g.noun))), why: `Le noyau est le nom : « ${g.noun} ». Les autres mots l’accompagnent.`, voice: FR };
+  },
+  nature: () => {
+    const g = makeGN(), kind = pick(['déterminant', 'nom', 'adjectif']), word = kind === 'déterminant' ? g.words[0] : kind === 'nom' ? g.noun : pick(g.adjs);
+    return { ask: `Dans « ${g.text} », quelle est la classe du mot :`, prompt: `« ${word} »`, answer: kind, opts: shuffle(['déterminant', 'nom', 'adjectif', 'verbe']), why: `« ${word} » est un ${kind}.`, voice: FR };
+  },
+  accord: () => {
+    let g; do { g = makeGN(); } while (!g.adjObjs.some((a) => new Set(a.f).size >= 3));
+    const a = g.adjObjs.find((x) => new Set(x.f).size >= 3), form = a.f[g.idx], blank = g.words.map((w) => (w === form ? '…' : w)).join(' ');
+    return { ask: `Accorde l’adjectif « ${a.f[0]} » :`, prompt: `« ${blank} »`, answer: form, opts: shuffle([...new Set(a.f)]), why: `« ${g.text} » : ${g.pl ? 'pluriel' : 'singulier'}, ${g.fem ? 'féminin' : 'masculin'}.`, say: g.text, voice: FR };
+  },
+  homophone: () => {
+    const [s, ans, opts] = pick(HOMOPHONES);
+    return { ask: 'Complète avec le bon mot :', prompt: s.replace('___', '…'), long: true, answer: ans, opts: opts.slice(), why: s.replace('___', ans), say: s.replace('___', ans), voice: FR };
+  },
+};
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+// noun, feminine?, plural, can it be the subject of an action verb?
+const GN_NOUNS = [['chat', 0, 'chats', 1], ['chien', 0, 'chiens', 1], ['lapin', 0, 'lapins', 1], ['cheval', 0, 'chevaux', 1], ['garçon', 0, 'garçons', 1], ['fille', 1, 'filles', 1], ['souris', 1, 'souris', 1], ['poule', 1, 'poules', 1], ['maison', 1, 'maisons', 0], ['fleur', 1, 'fleurs', 0], ['robe', 1, 'robes', 0], ['voiture', 1, 'voitures', 0], ['livre', 0, 'livres', 0], ['jardin', 0, 'jardins', 0], ['ballon', 0, 'ballons', 0]];
+// masc. sing., fem. sing., masc. plur., fem. plur.; b = goes before the noun; anim = only for people and animals
+const GN_ADJS = [[['petit', 'petite', 'petits', 'petites'], 'b'], [['grand', 'grande', 'grands', 'grandes'], 'b'], [['joli', 'jolie', 'jolis', 'jolies'], 'b'], [['beau', 'belle', 'beaux', 'belles'], 'b'], [['gros', 'grosse', 'gros', 'grosses'], 'b'],
+  [['noir', 'noire', 'noirs', 'noires'], 'a'], [['blanc', 'blanche', 'blancs', 'blanches'], 'a'], [['vert', 'verte', 'verts', 'vertes'], 'a'], [['gentil', 'gentille', 'gentils', 'gentilles'], 'a', 'anim'], [['heureux', 'heureuse', 'heureux', 'heureuses'], 'a', 'anim'], [['rouge', 'rouge', 'rouges', 'rouges'], 'a'], [['rapide', 'rapide', 'rapides', 'rapides'], 'a']];
+const GN_DETS = { ms: ['le', 'un', 'mon', 'ce'], fs: ['la', 'une', 'ma', 'cette'], p: ['les', 'des', 'mes', 'ces'] };
+const GN_VERBS = [['dort', 'dorment'], ['joue', 'jouent'], ['mange', 'mangent'], ['court', 'courent'], ['saute', 'sautent'], ['attend', 'attendent']];
+const GN_COMPL = ['dans le jardin', 'sous la table', 'près de la maison', 'au parc', 'devant l’école', 'sur le tapis'];
+function makeGN(animate) {
+  const nouns = GN_NOUNS.filter((n) => !animate || n[3]), [sg, fem, plf, alive] = pick(nouns), pl = Math.random() < 0.5, idx = (fem ? 1 : 0) + (pl ? 2 : 0);
+  let det = pick(pl ? GN_DETS.p : fem ? GN_DETS.fs : GN_DETS.ms); const noun = pl ? plf : sg;
+  const before = shuffle(GN_ADJS.filter((a) => a[1] === 'b'))[0], after = shuffle(GN_ADJS.filter((a) => a[1] === 'a' && (alive || !a[2])))[0];
+  const use = pick([['b'], ['a'], ['b', 'a']]), adjObjs = [];
+  if (det === 'des' && use.includes('b')) det = 'de'; // de grandes robes
+  const words = [det];
+  if (use.includes('b')) { words.push(before[0][idx]); adjObjs.push({ f: before[0] }); }
+  words.push(noun);
+  if (use.includes('a')) { words.push(after[0][idx]); adjObjs.push({ f: after[0] }); }
+  return { words, text: words.join(' '), noun, pl, fem, idx, adjs: adjObjs.map((a) => a.f[idx]), adjObjs, verb: pick(GN_VERBS), compl: pick(GN_COMPL) };
+}
+const HOMOPHONES = [
+  ['Elle ___ un joli chat.', 'a', ['a', 'à']], ['Je vais ___ l’école à pied.', 'à', ['a', 'à']], ['Il ___ fini ses devoirs.', 'a', ['a', 'à']], ['Elle habite ___ Genève.', 'à', ['a', 'à']],
+  ['Le ciel ___ tout bleu.', 'est', ['est', 'et']], ['Paul ___ Marie jouent ensemble.', 'et', ['est', 'et']], ['Mon frère ___ malade.', 'est', ['est', 'et']],
+  ['Mes amis ___ très gentils.', 'sont', ['son', 'sont']], ['Il cherche ___ cartable.', 'son', ['son', 'sont']], ['Les chats ___ sur le toit.', 'sont', ['son', 'sont']],
+  ['Les enfants ___ faim.', 'ont', ['on', 'ont']], ['___ va au parc cet après-midi ?', 'On', ['On', 'Ont']], ['Mes cousins ___ un chien.', 'ont', ['on', 'ont']],
+  ['Je range ___ jouets.', 'mes', ['mes', 'mais']], ['Il pleut, ___ il fait chaud.', 'mais', ['mes', 'mais']],
+  ['Regarde ___ belles fleurs là-bas !', 'ces', ['ces', 'ses']], ['Léa promène ___ deux chiens.', 'ses', ['ces', 'ses']],
+  ['Tu veux du jus ___ de l’eau ?', 'ou', ['ou', 'où']], ['___ est ma trousse ?', 'Où', ['Ou', 'Où']],
+  ['Ils ___ trop de devoirs ce soir.', 'ont', ['on', 'ont']], ['La lune ___ les étoiles brillent.', 'et', ['est', 'et']],
+];
+function frenchQuestions(n) {
+  const plan = ['conj', 'conj', pick(['tense', 'infinitive']), pick(['gnSubject', 'gnNoyau']), pick(['nature', 'accord', 'gnSubject']), 'homophone'];
+  while (plan.length < n) plan.push(pick(Object.keys(FRENCH)));
+  return shuffle(plan.slice(0, n)).map((k) => FRENCH[k]());
 }
 function vocabQuestions(n, lang) {
   const L = LANG[lang], words = shuffle(CONFIG.vocab).slice(0, n);
