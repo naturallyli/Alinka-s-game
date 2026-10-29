@@ -216,7 +216,7 @@ kbd { font-family: var(--body); background: var(--cloud); border-radius: 5px; pa
    Everything that makes the game "the game" lives in CONFIG below.
    To evolve it: add a task, a friend, words, or a new mini-game type.
    ===================================================================== */
-const GAME_VERSION = 7; // shown in the grown-up corner
+const GAME_VERSION = 8; // shown in the grown-up corner
 const DESK = [-6, -8.05], STOVE = [8, -0.35];
 const CONFIG = {
   repeatFactor: 0.3,      // doing a task again on the same day gives 30% of the points
@@ -225,18 +225,18 @@ const CONFIG = {
   // Studying gives the most stars. Among chores, ickier ones give more.
   // ick: 1 (easy peasy) .. 5 (super icky).
   tasks: [
-    { id: 'room',   name: 'Clean up my messy room',   icon: '🧸', ick: 5, points: 60, game: 'carry', items: 'mess',  drop: [-2, -8.3], where: 'Bedroom', dropName: 'the toy box' },
-    { id: 'trash',  name: 'Take out the stinky trash', icon: '🗑️', ick: 5, points: 55, game: 'carry', items: 'trash', drop: [6, 8.7],  where: 'Kitchen → garden bin', dropName: 'the green bin outside' },
-    { id: 'table',  name: 'Wipe the sticky table',     icon: '🧽', ick: 4, points: 45, game: 'wipe',  at: [0, 3.45],  where: 'Kitchen' },
-    { id: 'teeth',  name: 'Brush my teeth',            icon: '🪥', ick: 3, points: 35, game: 'teeth', at: [4, -8.5],  where: 'Bathroom' },
-    { id: 'math',   name: 'Maths : × et :',            icon: '🔢', ick: 3, points: 80, game: 'quiz', subject: 'math', at: DESK, where: 'Study desk' },
-    { id: 'french', name: 'Français : conjugaison et GN', icon: '🥐', ick: 3, points: 80, game: 'quiz', subject: 'francais', at: DESK, where: 'Study desk' },
-    { id: 'english',name: 'English words',             icon: '💂', ick: 2, points: 70, game: 'quiz', lang: 'en', at: DESK, where: 'Study desk' },
-    { id: 'german', name: 'German words',              icon: '🥨', ick: 2, points: 70, game: 'quiz', lang: 'de', at: DESK, where: 'Study desk' },
-    { id: 'dishes', name: 'Wash the greasy dishes',   icon: '🍽️', ick: 4, points: 40, game: 'wipe', variant: 'dishes', at: [10.2, -0.35], where: 'Kitchen sink' },
-    { id: 'pancakes', name: 'Make pancakes',           icon: '🥞', ick: 2, points: 30, game: 'pancake', at: STOVE, where: 'Kitchen stove', food: '🥞' },
-    { id: 'cupcakes', name: 'Bake cupcakes',           icon: '🧁', ick: 2, points: 35, game: 'bake', at: STOVE, where: 'Kitchen stove', food: '🧁' },
-    { id: 'salad',  name: 'Chop a fruit salad',        icon: '🍓', ick: 2, points: 25, game: 'chop', at: STOVE, where: 'Kitchen stove', food: '🥗' },
+    { id: 'room',   name: 'Clean up my messy room',   icon: '🧸', ick: 5, points: 20, game: 'carry', items: 'mess',  drop: [-2, -8.3], where: 'Bedroom', dropName: 'the toy box' },
+    { id: 'trash',  name: 'Take out the stinky trash', icon: '🗑️', ick: 5, points: 20, game: 'carry', items: 'trash', drop: [6, 8.7],  where: 'Kitchen → garden bin', dropName: 'the green bin outside' },
+    { id: 'table',  name: 'Wipe the sticky table',     icon: '🧽', ick: 4, points: 18, game: 'wipe',  at: [0, 3.45],  where: 'Kitchen' },
+    { id: 'teeth',  name: 'Brush my teeth',            icon: '🪥', ick: 3, points: 17, game: 'teeth', at: [4, -8.5],  where: 'Bathroom' },
+    { id: 'math',   name: 'Maths : × et :',            icon: '🔢', ick: 3, points: 30, game: 'quiz', subject: 'math', at: DESK, where: 'Study desk' },
+    { id: 'french', name: 'Français : conjugaison et GN', icon: '🥐', ick: 3, points: 30, game: 'quiz', subject: 'francais', at: DESK, where: 'Study desk' },
+    { id: 'english',name: 'English words',             icon: '💂', ick: 2, points: 30, game: 'quiz', lang: 'en', at: DESK, where: 'Study desk' },
+    { id: 'german', name: 'German words',              icon: '🥨', ick: 2, points: 30, game: 'quiz', lang: 'de', at: DESK, where: 'Study desk' },
+    { id: 'dishes', name: 'Wash the greasy dishes',   icon: '🍽️', ick: 4, points: 18, game: 'wipe', variant: 'dishes', at: [10.2, -0.35], where: 'Kitchen sink' },
+    { id: 'pancakes', name: 'Make pancakes',           icon: '🥞', ick: 2, points: 16, game: 'pancake', at: STOVE, where: 'Kitchen stove', food: '🥞' },
+    { id: 'cupcakes', name: 'Bake cupcakes',           icon: '🧁', ick: 2, points: 16, game: 'bake', at: STOVE, where: 'Kitchen stove', food: '🧁' },
+    { id: 'salad',  name: 'Chop a fruit salad',        icon: '🍓', ick: 2, points: 15, game: 'chop', at: STOVE, where: 'Kitchen stove', food: '🥗' },
     { id: 'bag',    name: 'Pack my school bag',        icon: '🎒', ick: 1, points: 15, game: 'pack',  at: [-1.65, -4.5], where: 'Bedroom' },
     { id: 'dress',  name: 'Get dressed for the weather', icon: '👗', ick: 1, points: 15, game: 'dress', at: [-10.1, -4.5], where: 'Bedroom wardrobe' },
   ],

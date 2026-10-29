@@ -1,6 +1,6 @@
 // Keeps a copy of the game on the device so it works offline.
 // Bump VERSION whenever the game is updated.
-const VERSION = 'alinka-v7';
+const VERSION = 'alinka-v8';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
