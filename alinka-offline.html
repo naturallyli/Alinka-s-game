@@ -137,6 +137,12 @@ kbd { font-family: var(--body); background: var(--cloud); border-radius: 5px; pa
 .cupcake .liner { position: absolute; bottom: 0; left: 18px; width: 114px; height: 72px; background: repeating-linear-gradient(90deg, #ffd25e 0 12px, #ffeaa8 12px 24px); clip-path: polygon(0 0, 100% 0, 86% 100%, 14% 100%); }
 .cupcake .topper { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 40px; }
 
+/* friend games */
+.arena { position: relative; width: 100%; height: 0; padding-bottom: 70%; border-radius: 20px; overflow: hidden; touch-action: none; }
+.arena-in { position: absolute; inset: 0; }
+.spr { position: absolute; left: 0; top: 0; line-height: 1; pointer-events: none; will-change: transform; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+.spr.pop-txt { font-family: var(--display); font-weight: 800; color: #fff; text-shadow: 0 2px 0 rgba(44,58,99,.4); }
+
 /* celebrate / lists */
 .yay { text-align: center; }
 .yay .pts { font-family: var(--display); font-size: 64px; font-weight: 800; color: #e7a91c; line-height: 1; }
@@ -202,6 +208,7 @@ kbd { font-family: var(--body); background: var(--cloud); border-radius: 5px; pa
    Everything that makes the game "the game" lives in CONFIG below.
    To evolve it: add a task, a friend, words, or a new mini-game type.
    ===================================================================== */
+const GAME_VERSION = 6; // shown in the grown-up corner
 const DESK = [-6, -8.05], STOVE = [8, -0.35];
 const CONFIG = {
   repeatFactor: 0.3,      // doing a task again on the same day gives 30% of the points
@@ -1410,7 +1417,15 @@ function openFriend(f) {
   $('fPlay').addEventListener('click', () => {
     state.points -= CONFIG.playCost; addLog(`Played with ${f.name}`, -CONFIG.playCost); save(); updateHUD();
     const g = openOv(`${f.game.title} with ${f.name}`);
-    ovCleanup = FGAMES[f.game.type](f, g, (score, good) => {
+    let finished = false, stopGame = null;
+    // closing the game before it ends gives the stars back
+    ovCleanup = () => {
+      if (stopGame) stopGame();
+      if (!finished) { state.points += CONFIG.playCost; addLog(`Stopped playing with ${f.name} (stars back)`, CONFIG.playCost); save(); updateHUD(); hint('Your stars are back. ⭐'); }
+    };
+    try {
+      stopGame = FGAMES[f.game.type](f, g, (score, good) => {
+      finished = true;
       if (ovCleanup) { ovCleanup(); ovCleanup = null; }
       const before = fs.hearts; fs.hearts = Math.min(CONFIG.maxHearts, fs.hearts + (good ? 2 : 1)); save(); refreshFriendLabels();
       const r = openOv(`${f.name} had so much fun!`);
@@ -1418,65 +1433,78 @@ function openFriend(f) {
         <p class="ickm" style="font-size:28px">${'❤️'.repeat(fs.hearts)}${'🤍'.repeat(CONFIG.maxHearts - fs.hearts)}</p>
         <div class="row-btns"><button class="big-btn" id="rOk">Yay!</button></div></div>`;
       $('rOk').addEventListener('click', closeOv); snd('ok'); confetti();
-    });
+      }) || null;
+    } catch (err) {
+      g.innerHTML = `<p class="msg">Oh no, this game did not start (${err.message}). Your stars are back.</p>`;
+    }
   });
 }
 
 const FGAMES = {};
-function canvasGame(el, f, text) {
-  el.innerHTML = `<p class="hint">${text}</p><canvas class="fg" width="600" height="420"></canvas><p class="sub" id="fgs"></p>`;
-  const c = el.querySelector('canvas'), g = c.getContext('2d');
-  const grad = g.createLinearGradient(0, 0, 0, 420); grad.addColorStop(0, f.game.bg[0]); grad.addColorStop(1, f.game.bg[1]);
-  const pos = (e) => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * (600 / r.width), (e.clientY - r.top) * (420 / r.height)]; };
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  return { c, g, grad, pos, emoji: (e, x, y, s) => { g.font = `${s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; g.fillText(e, x, y); } };
+// A play area made of plain page elements (no drawing canvas), sized 600 × 420 game units.
+function arena(el, f, text) {
+  el.innerHTML = `<p class="hint">${text}</p><div class="arena" style="background:linear-gradient(${f.game.bg[0]}, ${f.game.bg[1]})"><div class="arena-in"></div></div><p class="sub" id="fgs">Get ready…</p>`;
+  const box = el.querySelector('.arena'), a = box.firstChild;
+  const k = () => (box.clientWidth || 600) / 600;
+  const sprite = (e, size) => { const s = document.createElement('span'); s.className = 'spr'; s.textContent = e; s.style.fontSize = size + 'px'; a.appendChild(s); return s; };
+  const place = (s, x, y, sc = 1, op = 1) => { const kk = k(); s.style.transform = `translate(${x * kk}px, ${y * kk}px) translate(-50%, -50%) scale(${kk * sc})`; s.style.opacity = op; };
+  const pos = (e) => { const r = box.getBoundingClientRect(); return [(e.clientX - r.left) * (600 / r.width), (e.clientY - r.top) * (600 / r.width)]; };
+  return { box, sprite, place, pos };
+}
+// runs step(dt, elapsedSeconds) about 60 times a second until stop() is called
+function gameLoop(step) {
+  let last = performance.now(); const t0 = last, alive = { on: true };
+  const iv = setInterval(() => {
+    if (!alive.on) return;
+    const now = performance.now(), dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    step(dt, (now - t0) / 1000);
+  }, 16);
+  return () => { alive.on = false; clearInterval(iv); };
 }
 FGAMES.catch = (f, el, done) => {
-  const G = canvasGame(el, f, `Catch the ${f.game.item} and dodge the ${f.game.bad}. Move with your finger, the mouse, or ← →.`), TIME = 25;
-  let x = 300, score = 0, items = [], last = null, spawnT = 0, t0 = null, over = false, raf, fx = [];
-  const mv = (e) => { x = G.pos(e)[0]; };
-  G.c.addEventListener('pointermove', mv); G.c.addEventListener('pointerdown', mv);
+  const A = arena(el, f, `Catch the ${f.game.item} and dodge the ${f.game.bad}. Slide your finger left and right, or use ← →.`), TIME = 25;
+  let x = 300, score = 0, items = [], spawnT = 0, fx = [], stop;
+  const basket = A.sprite(f.game.catcher, 64); A.place(basket, x, 385);
+  const mv = (e) => { x = A.pos(e)[0]; };
+  A.box.addEventListener('pointermove', mv); A.box.addEventListener('pointerdown', mv);
   const kd = (e) => { if (e.code === 'ArrowLeft' || e.code === 'KeyA') x -= 40; if (e.code === 'ArrowRight' || e.code === 'KeyD') x += 40; };
   addEventListener('keydown', kd);
-  const loop = (now) => {
-    if (t0 === null) t0 = last = now; // time from the animation clock itself (Safari's can differ from performance.now)
-    const dt = Math.min(0.05, (now - last) / 1000); last = now; const el2 = (now - t0) / 1000;
-    spawnT -= dt; if (spawnT <= 0) { spawnT = rnd(0.45, 0.8); items.push({ x: rnd(30, 570), y: -20, v: rnd(140, 220) + el2 * 6, bad: Math.random() < 0.22 }); }
-    x = Math.max(40, Math.min(560, x));
-    const g = G.g; g.fillStyle = G.grad; g.fillRect(0, 0, 600, 420);
-    items.forEach((it) => { it.y += it.v * dt; G.emoji(it.bad ? f.game.bad : f.game.item, it.x, it.y, 42); if (it.y > 360 && it.y < 400 && Math.abs(it.x - x) < 50 && !it.hit) { it.hit = true; if (it.bad) { score = Math.max(0, score - 2); snd('bad'); } else { score++; snd('coin'); } fx.push({ x: it.x, y: 340, t: 0.6, s: it.bad ? '−2' : '+1' }); } });
-    items = items.filter((it) => !it.hit && it.y < 440);
-    G.emoji(f.game.catcher, x, 385, 64);
-    fx.forEach((p) => { p.t -= dt; p.y -= 60 * dt; g.fillStyle = '#ffffff'; g.font = '800 28px "Baloo 2", sans-serif'; g.fillText(p.s, p.x, p.y); }); fx = fx.filter((p) => p.t > 0);
-    $('fgs').textContent = `Score ${score} · ${Math.max(0, Math.ceil(TIME - el2))}s`;
-    if (el2 >= TIME) { over = true; return done(score + ' caught', score >= 15); }
-    if (!over) raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-  return () => { over = true; cancelAnimationFrame(raf); removeEventListener('keydown', kd); };
+  stop = gameLoop((dt, t) => {
+    spawnT -= dt;
+    if (spawnT <= 0) { spawnT = rnd(0.45, 0.8); const bad = Math.random() < 0.22; items.push({ x: rnd(30, 570), y: -20, v: rnd(140, 220) + t * 6, bad, s: A.sprite(bad ? f.game.bad : f.game.item, 42) }); }
+    x = Math.max(40, Math.min(560, x)); A.place(basket, x, 385);
+    items.forEach((it) => {
+      it.y += it.v * dt; A.place(it.s, it.x, it.y);
+      if (it.y > 360 && it.y < 400 && Math.abs(it.x - x) < 50 && !it.hit) {
+        it.hit = true; if (it.bad) { score = Math.max(0, score - 2); snd('bad'); } else { score++; snd('coin'); }
+        const p = A.sprite(it.bad ? '−2' : '+1', 28); p.classList.add('pop-txt'); fx.push({ x: it.x, y: 340, t: 0.6, s: p });
+      }
+    });
+    items = items.filter((it) => { const keep = !it.hit && it.y < 440; if (!keep) it.s.remove(); return keep; });
+    fx.forEach((p) => { p.t -= dt; p.y -= 60 * dt; A.place(p.s, p.x, p.y, 1, Math.max(0, p.t / 0.6)); });
+    fx = fx.filter((p) => { if (p.t <= 0) p.s.remove(); return p.t > 0; });
+    $('fgs').textContent = `Score ${score} · ${Math.max(0, Math.ceil(TIME - t))}s`;
+    if (t >= TIME) { stop(); done(score + ' caught', score >= 15); }
+  });
+  return () => { stop(); removeEventListener('keydown', kd); };
 };
 FGAMES.pop = (f, el, done) => {
-  const G = canvasGame(el, f, `Tap the ${f.game.item} before they hide again!`), TIME = 25;
-  let score = 0, items = [], last = null, t0 = null, spawnT = 0, over = false, raf;
-  G.c.addEventListener('pointerdown', (e) => {
-    const [px, py] = G.pos(e);
-    const hit = items.find((it) => Math.hypot(it.x - px, it.y - py) < 42 && !it.got);
-    if (hit) { hit.got = true; hit.life = 0.25; score++; snd('coin'); }
+  const A = arena(el, f, `Tap the ${f.game.item} before they hide again!`), TIME = 25;
+  let score = 0, items = [], spawnT = 0, stop;
+  for (let k = 0; k < 6; k++) { const h = A.sprite('🌿', 70); A.place(h, 50 + k * 100, 400); }
+  A.box.addEventListener('pointerdown', (e) => {
+    const [px, py] = A.pos(e), hit = items.find((it) => !it.got && Math.hypot(it.x - px, it.y - py) < 45);
+    if (hit) { hit.got = true; hit.life = 0.3; hit.s.textContent = '✨'; score++; snd('coin'); }
   });
-  const loop = (now) => {
-    if (t0 === null) t0 = last = now; // time from the animation clock itself (Safari's can differ from performance.now)
-    const dt = Math.min(0.05, (now - last) / 1000); last = now; const el2 = (now - t0) / 1000;
-    spawnT -= dt; if (spawnT <= 0) { spawnT = rnd(0.35, 0.7); items.push({ x: rnd(50, 550), y: rnd(60, 380), life: Math.max(0.8, 1.6 - el2 * 0.03), age: 0 }); }
-    const g = G.g; g.fillStyle = G.grad; g.fillRect(0, 0, 600, 420);
-    g.fillStyle = 'rgba(120,180,90,.35)'; for (let k = 0; k < 6; k++) { g.beginPath(); g.ellipse(50 + k * 100, 400, 70, 30, 0, 0, 7); g.fill(); }
-    items.forEach((it) => { it.age += dt; it.life -= dt; const s = it.got ? 60 + (0.25 - it.life) * 200 : Math.min(1, it.age * 5) * 52; g.globalAlpha = it.got ? Math.max(0, it.life * 4) : 1; G.emoji(it.got ? '✨' : f.game.item, it.x, it.y, s); g.globalAlpha = 1; });
-    items = items.filter((it) => it.life > 0);
-    $('fgs').textContent = `Found ${score} · ${Math.max(0, Math.ceil(TIME - el2))}s`;
-    if (el2 >= TIME) { over = true; return done(score + ' found', score >= 20); }
-    if (!over) raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-  return () => { over = true; cancelAnimationFrame(raf); };
+  stop = gameLoop((dt, t) => {
+    spawnT -= dt;
+    if (spawnT <= 0) { spawnT = rnd(0.35, 0.7); items.push({ x: rnd(50, 550), y: rnd(60, 360), life: Math.max(0.8, 1.6 - t * 0.03), age: 0, s: A.sprite(f.game.item, 52) }); }
+    items.forEach((it) => { it.age += dt; it.life -= dt; A.place(it.s, it.x, it.y, it.got ? 1.3 : Math.min(1, it.age * 5), it.got ? Math.max(0, it.life / 0.3) : 1); });
+    items = items.filter((it) => { if (it.life <= 0) it.s.remove(); return it.life > 0; });
+    $('fgs').textContent = `Found ${score} · ${Math.max(0, Math.ceil(TIME - t))}s`;
+    if (t >= TIME) { stop(); done(score + ' found', score >= 20); }
+  });
+  return () => stop();
 };
 FGAMES.memory = (f, el, done) => {
   const cards = shuffle([...f.game.cards, ...f.game.cards]); let open = [], moves = 0, pairs = 0, busy = false;
@@ -1540,6 +1568,7 @@ function openParent() {
       <textarea id="pCode" rows="3" spellcheck="false"></textarea>
       <div class="row-btns"><button class="big-btn alt" id="pCopy">Copy code</button><button class="big-btn alt" id="pLoad">Restore from code</button></div><p class="legend" id="pMsg"></p></section>
     <section><h3>Recent stars</h3><ol class="logl">${state.log.slice(0, 25).map((l) => `<li>${l.t}: ${l.text} (${l.pts > 0 ? '+' : ''}${l.pts})</li>`).join('') || '<li>Nothing yet</li>'}</ol></section>
+    <p class="legend">Game version ${GAME_VERSION}</p>
     <section><h3>Start over</h3><div class="row-btns"><button class="big-btn alt" id="pReset">Erase all progress</button></div></section></div>`;
   const code = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
   $('pCode').value = code;
