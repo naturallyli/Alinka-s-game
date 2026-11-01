@@ -17,3 +17,18 @@ The game's source is `src/game.html`. Tasks, star values, friends and vocabulary
 After a change:
 1. Run `python3 build.py`. It rebuilds `index.html` (the home-screen app) and `alinka-offline.html` (a single file that works without internet).
 2. Change `VERSION` in `sw.js`, so phones pick up the new version.
+
+---
+
+# Deutsch Party (`deutsch/`)
+
+A Kahoot-style German quiz (control language: French) with cute rivals and a drawing reward.
+It is a separate home-screen app at the `deutsch/` address of this site (…/deutsch/), installed the same way as above.
+
+Modes: articles (der/die/das), verb conjugation (all 6 persons), vocabulary & spelling, grammar (sein/ihr, im/in der/auf dem, es gibt), and a mixed "Grand Quiz".
+
+## Adding the words of the week
+
+1. In `deutsch/words.js`, add a line to `weeks` (e.g. `{ week: 1, label: "Semaine du 3 novembre" }`) and add the new nouns/verbs/words with `week: 1`.
+   The newest week comes up about 3.5× more often; all older words stay in rotation.
+2. Change `VERSION` in `deutsch/sw.js` (e.g. `deutsch-v2`) so the iPhone/iPad picks up the update.
