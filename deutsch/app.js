@@ -175,6 +175,7 @@ function conjTable(v, p) {
   return `<div><b>${esc(v.inf)}</b> (${esc(v.fr)})</div><div class="conj">${cell(0)}${cell(3)}${cell(1)}${cell(4)}${cell(2)}${cell(5)}</div>`;
 }
 function artTip(n) {
+  if (n.tip) return n.tip;
   if (/ung$/.test(n.de)) return 'Les mots en <b>-ung</b> sont toujours <b class="die">die</b>.';
   const base = NOUNS.find(m => m !== n && m.de.length >= 3 && n.de.toLowerCase().endsWith(m.de.toLowerCase()) && n.de.length > m.de.length);
   if (base && base.art === n.art) return `Le dernier mot décide : <b class="${base.art}">${base.art} ${esc(base.de)}</b> → <b class="${n.art}">${n.art} ${esc(n.de)}</b>.`;
@@ -199,6 +200,7 @@ function misspellings(word, isNoun) {
   const out = new Set();
   const rules = shuffle(MISSPELL);
   if (isNoun && Math.random() < 0.5) out.add(word.charAt(0).toLowerCase() + word.slice(1));
+  else if (!isNoun && /^[a-zäöü]/.test(word) && Math.random() < 0.4) out.add(word.charAt(0).toUpperCase() + word.slice(1));
   for (const r of rules) { const w = r(word); if (w !== word && w.length > 1) out.add(w); if (out.size >= 3) break; }
   let guard = 0;
   while (out.size < 3 && guard++ < 20) {
@@ -312,7 +314,7 @@ const GEN = {
   spellType() {
     const it = pickVocab(x => !hasPunct(x));
     return {
-      cat: 'vocab', kindLabel: 'Écris le mot', isNew: isNew(it), type: 'type', accept: it.disp, noun: it.type === 'n' ? it : null, lower: it.type !== 'n',
+      cat: 'vocab', kindLabel: 'Écris le mot', isNew: isNew(it), type: 'type', accept: it.disp, noun: it.type === 'n' ? it : null, lower: it.type === 'v', word: it.type === 'w',
       placeholder: it.type === 'n' ? 'der / die / das …' : '…',
       html: `${emo(it.emoji)}<div class="main">${esc(it.fr)}</div><div class="hint">Écris en allemand${it.type === 'n' ? ' <b>avec l\'article</b>' : ''} !</div>`,
       answerHtml: vocabHtml(it), say: it.disp, tip: '', keys: ['v:' + it.id], review: it.fr, answerPlain: it.disp
@@ -327,6 +329,18 @@ const GEN = {
 };
 
 const GRAM = {
+  morgen() {
+    const [sent, k, fr] = rnd(MORGEN), ans = k ? 'Morgen' : 'morgen';
+    const [a, b] = sent.split('_');
+    return {
+      kindLabel: 'morgen ou Morgen ?',
+      html: `<div class="emo">${k ? '🌅' : '📅'}</div><div class="sentence">${esc(a)}${BL}${esc(b)}</div><div class="hint">${esc(fr)}</div>`,
+      layout: 'two', choices: [{ label: 'morgen<br><small style="font-size:.5em">demain</small>', value: 'morgen', cls: 'c1' }, { label: 'Morgen<br><small style="font-size:.5em">le matin</small>', value: 'Morgen', cls: 'c0' }], correct: ans,
+      answerHtml: `${esc(a)}<b>${ans}</b>${esc(b)}`, say: a + ans + b,
+      tip: k ? '<b>der Morgen</b> = le matin → c\'est un nom : <b>majuscule</b>.' : '<b>morgen</b> = demain → ce n\'est pas un nom : <b>minuscule</b>.',
+      review: `${a}___${b}`, answerPlain: a + ans + b
+    };
+  },
   poss() {
     const n = pickW(NOUNS.filter(x => x.poss), x => weekFactor(x.week), x => 'gp:' + x.de);
     const girl = Math.random() < 0.5, name = rnd(girl ? NAMES_F : NAMES_M);
@@ -387,6 +401,14 @@ const GRAM = {
     };
   }
 };
+// morgen (demain, minuscule) ≠ der Morgen (le matin, majuscule)
+const MORGEN = [
+  ['Wir gehen _ in den Zoo.', 0, 'Nous allons au zoo demain.'], ['Ich schlafe _ bei Lea.', 0, 'Demain, je dors chez Lea.'],
+  ['Heute ist Montag und _ ist Dienstag.', 0, 'Aujourd\'hui c\'est lundi et demain c\'est mardi.'], ['Wir kochen _ Spaghetti.', 0, 'Demain, nous cuisinons des spaghettis.'],
+  ['Ihr seid _ im Schwimmbad.', 0, 'Demain, vous êtes à la piscine.'], ['Heute ist Freitag und _ ist Samstag.', 0, 'Aujourd\'hui c\'est vendredi et demain samedi.'],
+  ['Der _ ist toll.', 1, 'Le matin est génial.'], ['Am _ dusche ich.', 1, 'Le matin, je prends une douche.'],
+  ['Heute _ esse ich im Garten.', 1, 'Ce matin, je mange dans le jardin.'], ['Am _ ist es noch dunkel.', 1, 'Le matin, il fait encore sombre.']
+];
 function frIndef(n) {
   const b = n.fr.split(',')[0].trim();
   if (b.startsWith('le ')) return 'un ' + b.slice(3);
@@ -408,7 +430,7 @@ const MODES = {
   articles: { title: 'Articles', sub: 'der · die · das', ic: '🎨', kinds: { art: 1 }, keys: 'a:' },
   verbes: { title: 'Verbes', sub: 'ich, du, er …', ic: '🏃‍♀️', kinds: { conjForm: 5, conjPron: 2, conjType: 2 }, keys: 'c:' },
   vocab: { title: 'Vocabulaire', sub: 'mots & orthographe', ic: '📚', kinds: { fr2de: 3, de2fr: 2, emoji: 2, spellPick: 2, spellType: 2 }, keys: 'v:' },
-  grammaire: { title: 'Grammaire', sub: 'sein/ihr · im · es gibt', ic: '🧩', kinds: { gram: 1 }, keys: 'g:' },
+  grammaire: { title: 'Grammaire', sub: 'sein/ihr · im · es gibt · morgen', ic: '🧩', kinds: { gram: 1 }, keys: 'g:' },
   mix: { title: 'Grand Quiz', sub: 'Un peu de tout !', ic: '🏆', kinds: { art: 3, conjForm: 2, conjPron: 1, conjType: 1, fr2de: 1, de2fr: 1, emoji: 1, spellPick: 1, spellType: 1, gram: 3 } }
 };
 function pickKind(mode) {
@@ -487,7 +509,7 @@ function renderQuestion() {
       <input id="ti" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="${esc(q.placeholder || '')}">
       <div class="keys"><button type="button" data-k="ä">ä</button><button type="button" data-k="ö">ö</button><button type="button" data-k="ü">ü</button><button type="submit" class="btn mint" style="flex:2">OK ✓</button></div></form>`;
   } else {
-    answers = `<div class="answers ${q.layout === 'three' ? 'three' : q.layout === 'list' ? 'list' : ''}">${q.choices.map((c, i) =>
+    answers = `<div class="answers ${q.layout === 'three' ? 'three' : q.layout === 'two' ? 'three two' : q.layout === 'list' ? 'list' : ''}">${q.choices.map((c, i) =>
       `<button class="ans ${c.cls}" data-a="ans" data-i="${i}"><span class="sh">${SH[i % 4]}</span>${c.label}</button>`).join('')}</div>`;
   }
   app.innerHTML = `<div class="screen q-screen"><div class="wrap" style="display:flex;flex-direction:column;gap:10px;flex:1">
@@ -528,7 +550,11 @@ function gradeType(q, text) {
   const t = norm(text), exp = norm(q.accept);
   if (!t) return { res: false, why: 'Pas de réponse.' };
   if (t === exp) return { res: true };
-  if (t.toLowerCase() === exp.toLowerCase()) return q.lower ? { res: true } : { res: 'almost', why: 'Presque ! Attention à la <b>majuscule</b> : les noms allemands commencent par une majuscule.' };
+  if (t.toLowerCase() === exp.toLowerCase()) {
+    if (q.lower) return { res: true };
+    if (q.word) return { res: 'almost', why: exp[0] === exp[0].toLowerCase() ? 'Presque ! Ce mot s\'écrit avec une <b>minuscule</b>.' + (exp === 'morgen' ? ' (<b>morgen</b> = demain, <b>der Morgen</b> = le matin)' : '') : 'Presque ! Ce mot commence par une <b>majuscule</b>.' };
+    return { res: 'almost', why: 'Presque ! Attention à la <b>majuscule</b> : les noms allemands commencent par une majuscule.' };
+  }
   if (q.noun) {
     const w = q.noun.de, words = t.split(' ');
     const last = words[words.length - 1];

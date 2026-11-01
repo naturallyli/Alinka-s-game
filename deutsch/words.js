@@ -17,7 +17,8 @@
    ===================================================================== */
 window.DE_DATA = {
   weeks: [
-    { week: 0, label: "Depuis la rentrée (Lektion 7 : Mein Haus, meine Stadt)" }
+    { week: 0, label: "Depuis la rentrée (Lektion 7 : Mein Haus, meine Stadt)" },
+    { week: 1, label: "Semaine 1 : la semaine, les jours, l'école" }
   ],
 
   nouns: [
@@ -61,7 +62,20 @@ window.DE_DATA = {
     { de: "Hof", art: "der", pl: "Höfe", fr: "la cour", emoji: null, week: 0, loc: "auf dem", acts: ["sein", "essen", "sitzen"], frLoc: "dans la cour", where: "haus" },
     { de: "Stadion", art: "das", pl: "Stadien", fr: "le stade", emoji: "🏟️", week: 0, loc: "im", acts: ["sein", "sitzen"], frLoc: "au stade", where: "stadt" },
     { de: "Schwimmbad", art: "das", pl: "Schwimmbäder", fr: "la piscine", emoji: "🏊", week: 0, loc: "im", acts: ["sein", "duschen"], frLoc: "à la piscine", where: "stadt" },
-    { de: "Wetter", art: "das", pl: null, fr: "le temps, la météo", emoji: "🌦️", week: 0, loc: null }
+    { de: "Wetter", art: "das", pl: null, fr: "le temps, la météo", emoji: "🌦️", week: 0, loc: null },
+    // --- Semaine 1 : la semaine, les jours
+    { de: "Woche", art: "die", pl: "Wochen", fr: "la semaine", emoji: "📅", week: 1, loc: null },
+    { de: "Montag", art: "der", pl: null, fr: "lundi", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Dienstag", art: "der", pl: null, fr: "mardi", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Mittwoch", art: "der", pl: null, fr: "mercredi", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Donnerstag", art: "der", pl: null, fr: "jeudi", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Freitag", art: "der", pl: null, fr: "vendredi", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Samstag", art: "der", pl: null, fr: "samedi", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Sonntag", art: "der", pl: null, fr: "dimanche", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Morgen", art: "der", pl: null, fr: "le matin", emoji: "🌅", week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Vormittag", art: "der", pl: null, fr: "la matinée", emoji: "🌤️", week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Abend", art: "der", pl: null, fr: "le soir", emoji: "🌆", week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Fach", art: "das", pl: "Fächer", fr: "la matière (à l'école)", emoji: "📐", week: 1, loc: null }
   ],
 
   verbs: [
@@ -89,13 +103,19 @@ window.DE_DATA = {
     { de: "Wirklich?", fr: "Vraiment ?", emoji: "🤨", week: 0 },
     { de: "Das glaube ich nicht.", fr: "Je ne crois pas.", emoji: "🙅", week: 0 },
     { de: "zu Fuss gehen", fr: "aller à pied", emoji: "👣", week: 0 },
-    { de: "es gibt", fr: "il y a", emoji: null, week: 0 }
+    { de: "es gibt", fr: "il y a", emoji: null, week: 0 },
+    // --- Semaine 1
+    { de: "heute", fr: "aujourd'hui", emoji: null, week: 1 },
+    { de: "morgen", fr: "demain", emoji: null, week: 1 },
+    { de: "Englisch", fr: "l'anglais", emoji: "🇬🇧", week: 1 },
+    { de: "nach Hause gehen", fr: "rentrer à la maison", emoji: "🏡", week: 1 }
   ],
 
   // Règles de grammaire (le code de chaque règle est dans app.js)
   grammar: [
     { id: "poss",   week: 0, title: "sein / seine – ihr / ihre" },
     { id: "lieu",   week: 0, title: "im – in der – auf dem" },
-    { id: "esgibt", week: 0, title: "es gibt …" }
+    { id: "esgibt", week: 0, title: "es gibt …" },
+    { id: "morgen", week: 1, title: "morgen (demain) ≠ der Morgen (le matin)" }
   ]
 };
