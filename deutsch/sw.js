@@ -1,7 +1,7 @@
 // Garde une copie de Deutsch Party sur l'appareil pour qu'il marche sans internet.
 // Augmenter VERSION à chaque mise à jour (nouveaux mots, etc.).
-const VERSION = 'deutsch-v1';
-const FILES = ['./', 'index.html', 'app.js', 'words.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'deutsch-v2';
+const FILES = ['./', 'index.html', 'app.js', 'scenes.js', 'words.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

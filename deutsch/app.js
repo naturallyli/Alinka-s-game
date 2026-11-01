@@ -662,16 +662,25 @@ const PALETTES = [
   { name: 'Ciel', c: ['#a0c4ff', '#bdb2ff', '#ffc6ff'] }, { name: 'Glace', c: ['#ffadad', '#ffd6a5', '#9bf6ff'] },
   { name: 'Forêt', c: ['#b5e48c', '#ffe5b4', '#f4acb7'] }
 ];
+const SC = window.DP_SCENES;
+function sceneForIdea(idea) {
+  if (idea.scene && SC.SCENES[idea.scene]) return idea.scene;
+  const n = NOUNS.find(x => x.loc && idea.de && idea.de.includes(' ' + x.loc + ' ' + x.de + '.'));
+  const ids = n ? SC.forPlace(n.de) : [];
+  idea.scene = ids[0] || 'schlafzimmer'; save();
+  return idea.scene;
+}
 function makeIdea() {
   const ch = rnd(CHARS);
-  const places = NOUNS.filter(n => n.loc && n.acts);
-  const n = rnd(places);
+  const places = NOUNS.filter(n => n.loc && n.acts && SC.forPlace(n.de).length);
+  const n = pickW(places, x => weekFactor(x.week));
   const acts = n.acts.filter(a => a !== 'sein');
   const inf = acts.length ? rnd(acts) : 'sein';
   const v = VERB[inf];
   const frAct = inf === 'sein' ? 'est' : (ch.f && v.frActF ? v.frActF : v.frAct);
   return {
-    id: Date.now() + '' + Math.floor(Math.random() * 1000), em: ch.em + (n.emoji || ''),
+    id: Date.now() + '' + Math.floor(Math.random() * 1000), em: ch.em, ch: ch.fr,
+    scene: rnd(SC.forPlace(n.de)),
     de: `${ch.de} ${formsOf(inf)[2]} ${n.loc} ${n.de}.`,
     fr: `Dessine ${ch.fr} qui ${frAct} ${n.frLoc || ''}`.trim() + '.',
     extra: rnd(EXTRAS)(ch.f), pal: rnd(PALETTES)
@@ -680,32 +689,40 @@ function makeIdea() {
 function renderIdea(id) {
   const idea = S.pending.find(x => x.id === id) || S.pending[0];
   if (!idea) return renderHome();
+  const scene = sceneForIdea(idea);
   app.innerHTML = `<div class="screen"><div class="wrap" style="display:flex;flex-direction:column;gap:14px">
     <div class="row"><button class="btn soft" data-a="home">←</button><h2 style="font-size:28px">Ton idée de dessin 🎨</h2></div>
-    <div class="idea"><div class="emo">${idea.em}</div><div class="de">${esc(idea.de)}</div><button class="say" data-a="sayidea" data-t="${esc(idea.de)}">🔊</button>
+    <div class="idea"><div class="de">${esc(idea.em)} ${esc(idea.de)}</div><button class="say" data-a="sayidea" data-t="${esc(idea.de)}">🔊</button>
       <div class="fr">${esc(idea.fr)}</div><div class="extra">… ${esc(idea.extra)}</div>
+      <canvas id="pv" width="600" height="600" class="preview"></canvas>
+      <div style="font-weight:800;margin-top:8px">Le décor est prêt ! Tu n'as plus qu'à dessiner ${esc(idea.ch || 'le personnage')} ${esc(idea.em)}</div>
       <div class="swatches">${idea.pal.c.map(c => `<i style="background:${c}"></i>`).join('')}</div><div class="muted" style="font-weight:700;font-size:14px;margin-top:4px">Couleurs « ${idea.pal.name} » — ou celles que tu veux !</div></div>
     <button class="btn big lav" data-a="draw" data-id="${idea.id}">✏️ Dessiner maintenant</button>
     ${idea.rerolled ? '' : `<button class="btn soft" data-a="reroll" data-id="${idea.id}">🎲 Une autre idée</button>`}
     <button class="btn soft" data-a="home">Plus tard (je la garde)</button>
   </div></div>`;
+  SC.paint(scene, $('#pv').getContext('2d'), 600).catch(() => {});
   setTimeout(() => speak(idea.de), 300);
 }
 
 // ---------------------------------------------------------------- dessin
+// Deux calques : le décor (en dessous, jamais effacé) et le dessin (au-dessus).
 const COLORS = ['#3a2d5c', '#7a5230', '#e8364f', '#ff8fc1', '#ffc4dd', '#ff9a3c', '#ffd25e', '#fff3a8', '#3cbf6a', '#9fe3c8', '#3a8bff', '#a0d4ff', '#9b6bff', '#d6c6ff', '#9aa0a6', '#ffffff'];
-const SIZES = [3, 7, 14, 28];
+const N = 1200;                       // taille du dessin en pixels (carré)
+const SIZES = [8, 18, 36, 70];
+const STAMP_SIZES = [90, 150, 240, 360];
 const STAMPS = ['⭐', '💖', '🌸', '✨', '🍓', '☁️', '🌈', '🎀', '🐾', '🍰', '🌙', '🦋'];
 let D = null;
 function renderDraw(id) {
   const idea = S.pending.find(x => x.id === id);
   if (!idea) return renderHome();
-  D = { idea, tool: 'pen', color: COLORS[0], size: 1, stamp: '⭐', undo: [], dirty: false, pid: null };
+  const scene = sceneForIdea(idea);
+  D = { idea, tool: 'pen', color: COLORS[0], size: 1, stamp: '⭐', undo: [], dirty: false, pid: null, bgData: null };
   app.innerHTML = `<div class="screen draw-screen">
     <div class="draw-head"><button class="btn soft" style="padding:10px 14px" data-a="drawback">←</button>
       <div class="idea-mini">${idea.em} ${esc(idea.de)}<small>${esc(idea.fr)} ${esc(idea.extra)}</small></div>
       <button class="btn mint" style="padding:10px 14px" data-a="drawsave">✓ Fini</button></div>
-    <div class="canvas-wrap" id="cw"><canvas id="cv"></canvas></div>
+    <div class="canvas-wrap" id="cw"><div class="paper" id="paper"><canvas id="bg" width="${N}" height="${N}"></canvas><canvas id="cv" width="${N}" height="${N}"></canvas></div></div>
     <div class="colors">${COLORS.map(c => `<button data-a="color" data-c="${c}" style="background:${c}" class="${c === D.color ? 'on' : ''}"></button>`).join('')}</div>
     <div class="stamps" id="stamps" hidden>${STAMPS.map(s => `<button data-a="stamp" data-s="${s}" class="${s === D.stamp ? 'on' : ''}">${s}</button>`).join('')}</div>
     <div class="tools">
@@ -718,50 +735,50 @@ function renderDraw(id) {
     </div></div>`;
   const cv = $('#cv');
   D.cv = cv; D.ctx = cv.getContext('2d', { willReadFrequently: true });
-  sizeCanvas();
+  const bgc = $('#bg').getContext('2d', { willReadFrequently: true });
+  D.bgc = bgc;
+  bgc.fillStyle = '#fff'; bgc.fillRect(0, 0, N, N);
+  const myD = D;
+  SC.paint(scene, bgc, N).then(() => { if (D === myD) { try { D.bgData = bgc.getImageData(0, 0, N, N); } catch (e) { D.bgData = null; } } }).catch(() => {});
+  fitPaper();
   cv.addEventListener('pointerdown', penDown);
   cv.addEventListener('pointermove', penMove);
   cv.addEventListener('pointerup', penUp);
   cv.addEventListener('pointercancel', penUp);
 }
-function sizeCanvas() {
-  if (!D) return;
-  const wrap = $('#cw'); if (!wrap) return;
+function fitPaper() {
+  const wrap = $('#cw'), paper = $('#paper'); if (!wrap || !paper) return;
   const r = wrap.getBoundingClientRect();
-  if (r.width < 10 || r.height < 10) return;
-  let scale = Math.min(window.devicePixelRatio || 1, 2);
-  scale = Math.min(scale, 1600 / Math.max(r.width, r.height));
-  const old = D.cv.width ? (() => { const t = document.createElement('canvas'); t.width = D.cv.width; t.height = D.cv.height; t.getContext('2d').drawImage(D.cv, 0, 0); return t; })() : null;
-  D.cv.width = Math.round(r.width * scale); D.cv.height = Math.round(r.height * scale); D.scale = scale;
-  D.ctx.fillStyle = '#fff'; D.ctx.fillRect(0, 0, D.cv.width, D.cv.height);
-  if (old) D.ctx.drawImage(old, 0, 0, D.cv.width, D.cv.height);
-  D.undo = [];
+  const s = Math.max(50, Math.floor(Math.min(r.width, r.height)));
+  paper.style.width = paper.style.height = s + 'px';
 }
-addEventListener('resize', () => { if (D && $('#cv')) setTimeout(sizeCanvas, 150); });
-function cpos(e) { const r = D.cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * D.cv.width / r.width, y: (e.clientY - r.top) * D.cv.height / r.height }; }
-function pushUndo() { try { D.undo.push(D.ctx.getImageData(0, 0, D.cv.width, D.cv.height)); if (D.undo.length > 8) D.undo.shift(); } catch (e) { /* mémoire */ } D.dirty = true; }
-function lineW(e) { const base = SIZES[D.size] * D.scale * (D.tool === 'eraser' ? 2.2 : 1); return e.pointerType === 'pen' && e.pressure > 0 ? base * (0.45 + e.pressure * 1.1) : base; }
+addEventListener('resize', () => { if (D && $('#paper')) setTimeout(fitPaper, 120); });
+function cpos(e) { const r = D.cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * N / r.width, y: (e.clientY - r.top) * N / r.height }; }
+function pushUndo() { try { D.undo.push(D.ctx.getImageData(0, 0, N, N)); if (D.undo.length > 6) D.undo.shift(); } catch (e) { /* mémoire */ } D.dirty = true; }
+function lineW(e) { const base = SIZES[D.size] * (D.tool === 'eraser' ? 1.8 : 1); return e.pointerType === 'pen' && e.pressure > 0 ? base * (0.45 + e.pressure * 1.1) : base; }
+function penMode() { const c = D.ctx; c.globalCompositeOperation = D.tool === 'eraser' ? 'destination-out' : 'source-over'; c.fillStyle = c.strokeStyle = D.color; c.lineCap = 'round'; c.lineJoin = 'round'; return c; }
 function penDown(e) {
   e.preventDefault();
   if (D.pid !== null) return;
   const p = cpos(e);
+  D.ctx.globalCompositeOperation = 'source-over';
   if (D.tool === 'fill') { pushUndo(); flood(p.x, p.y, D.color); return; }
   if (D.tool === 'stamp') {
-    pushUndo(); const sz = [36, 60, 96, 150][D.size] * D.scale;
-    D.ctx.font = `${sz}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; D.ctx.textAlign = 'center'; D.ctx.textBaseline = 'middle';
+    pushUndo();
+    D.ctx.font = `${STAMP_SIZES[D.size]}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; D.ctx.textAlign = 'center'; D.ctx.textBaseline = 'middle';
     D.ctx.fillText(D.stamp, p.x, p.y); Snd.pop(); return;
   }
   pushUndo();
   D.pid = e.pointerId; try { D.cv.setPointerCapture(e.pointerId); } catch (er) { /* rien */ }
   D.last = p; D.mid = p;
-  const c = D.ctx; c.fillStyle = D.tool === 'eraser' ? '#fff' : D.color;
+  const c = penMode();
   c.beginPath(); c.arc(p.x, p.y, lineW(e) / 2, 0, Math.PI * 2); c.fill();
 }
 function penMove(e) {
   if (D.pid !== e.pointerId) return;
   e.preventDefault();
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-  const c = D.ctx; c.strokeStyle = D.tool === 'eraser' ? '#fff' : D.color; c.lineCap = 'round'; c.lineJoin = 'round';
+  const c = penMode();
   for (const ev of (evs.length ? evs : [e])) {
     const p = cpos(ev), mid = { x: (D.last.x + p.x) / 2, y: (D.last.y + p.y) / 2 };
     c.lineWidth = lineW(ev);
@@ -771,18 +788,26 @@ function penMove(e) {
 }
 function penUp(e) {
   if (D.pid !== e.pointerId) return;
-  const c = D.ctx; c.beginPath(); c.moveTo(D.mid.x, D.mid.y); c.lineTo(D.last.x, D.last.y); c.stroke();
+  const c = penMode(); c.beginPath(); c.moveTo(D.mid.x, D.mid.y); c.lineTo(D.last.x, D.last.y); c.stroke();
+  c.globalCompositeOperation = 'source-over';
   D.pid = null;
 }
+// Pot de peinture : regarde l'image visible (décor + dessin) et peint sur le calque du dessin.
 function flood(x0, y0, hex) {
-  const w = D.cv.width, h = D.cv.height; x0 = Math.floor(x0); y0 = Math.floor(y0);
+  const w = N, h = N; x0 = Math.floor(x0); y0 = Math.floor(y0);
   if (x0 < 0 || y0 < 0 || x0 >= w || y0 >= h) return;
-  const img = D.ctx.getImageData(0, 0, w, h), d = img.data;
-  const i0 = (y0 * w + x0) * 4, tr = d[i0], tg = d[i0 + 1], tb = d[i0 + 2];
+  const img = D.ctx.getImageData(0, 0, w, h), d = img.data, b = D.bgData ? D.bgData.data : null;
+  const comp = new Uint8ClampedArray(w * h * 3);
+  for (let i = 0, j = 0; i < d.length; i += 4, j += 3) {
+    const a = d[i + 3] / 255;
+    comp[j] = d[i] * a + (b ? b[i] : 255) * (1 - a); comp[j + 1] = d[i + 1] * a + (b ? b[i + 1] : 255) * (1 - a); comp[j + 2] = d[i + 2] * a + (b ? b[i + 2] : 255) * (1 - a);
+  }
+  const k0 = (y0 * w + x0) * 3, tr = comp[k0], tg = comp[k0 + 1], tb = comp[k0 + 2];
   const fr = parseInt(hex.slice(1, 3), 16), fg = parseInt(hex.slice(3, 5), 16), fb = parseInt(hex.slice(5, 7), 16);
   if (Math.abs(tr - fr) + Math.abs(tg - fg) + Math.abs(tb - fb) < 12) return;
-  const seen = new Uint8Array(w * h), TOL = 110;
-  const match = i => !seen[i] && (Math.abs(d[i * 4] - tr) + Math.abs(d[i * 4 + 1] - tg) + Math.abs(d[i * 4 + 2] - tb)) <= TOL;
+  const seen = new Uint8Array(w * h), TOL = 90;
+  const dist = i => Math.abs(comp[i * 3] - tr) + Math.abs(comp[i * 3 + 1] - tg) + Math.abs(comp[i * 3 + 2] - tb);
+  const match = i => !seen[i] && dist(i) <= TOL;
   const paint = i => { seen[i] = 1; d[i * 4] = fr; d[i * 4 + 1] = fg; d[i * 4 + 2] = fb; d[i * 4 + 3] = 255; };
   const stack = [x0, y0];
   while (stack.length) {
@@ -802,21 +827,18 @@ function flood(x0, y0, hex) {
   const grow = [];
   for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
     const i = y * w + x; if (seen[i]) continue;
-    if ((seen[i - 1] || seen[i + 1] || seen[i - w] || seen[i + w])) {
-      const lum = d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2], tl = tr + tg + tb;
-      if (Math.abs(lum - tl) < 260) grow.push(i);
-    }
+    if ((seen[i - 1] || seen[i + 1] || seen[i - w] || seen[i + w]) && dist(i) < 260) grow.push(i);
   }
   grow.forEach(paint);
   D.ctx.putImageData(img, 0, 0);
   Snd.pop();
 }
 async function saveDrawing() {
-  const out = document.createElement('canvas');
-  const sc = Math.min(1, 1400 / Math.max(D.cv.width, D.cv.height));
-  out.width = Math.round(D.cv.width * sc); out.height = Math.round(D.cv.height * sc);
-  out.getContext('2d').drawImage(D.cv, 0, 0, out.width, out.height);
-  const img = out.toDataURL('image/jpeg', 0.88);
+  const out = document.createElement('canvas'); out.width = out.height = N;
+  const o = out.getContext('2d');
+  let img;
+  try { o.drawImage($('#bg'), 0, 0); o.drawImage(D.cv, 0, 0); img = out.toDataURL('image/jpeg', 0.88); }
+  catch (e) { o.globalCompositeOperation = 'copy'; o.fillStyle = '#fff'; o.fillRect(0, 0, N, N); o.globalCompositeOperation = 'source-over'; o.drawImage(D.cv, 0, 0); img = out.toDataURL('image/jpeg', 0.88); }
   try {
     await dbPut({ img, de: D.idea.de, fr: D.idea.fr, em: D.idea.em, date: Date.now() });
   } catch (e) { alert("Oups, le dessin n'a pas pu être enregistré."); return; }
@@ -1004,7 +1026,7 @@ app.addEventListener('click', e => {
     case 'size': D.size = +b.dataset.i; $$('[data-a=size]').forEach(x => x.classList.toggle('on', x === b)); break;
     case 'stamp': D.stamp = b.dataset.s; $$('[data-a=stamp]').forEach(x => x.classList.toggle('on', x === b)); break;
     case 'undo': if (D.undo.length) { D.ctx.putImageData(D.undo.pop(), 0, 0); } break;
-    case 'clear': if (confirm('Tout effacer ?')) { pushUndo(); D.ctx.fillStyle = '#fff'; D.ctx.fillRect(0, 0, D.cv.width, D.cv.height); } break;
+    case 'clear': if (confirm('Effacer ton dessin ? (Le décor reste.)')) { pushUndo(); D.ctx.clearRect(0, 0, N, N); } break;
     case 'gallery': renderGallery(); break;
     case 'view': renderViewer(b.dataset.id); break;
     case 'delpic': if (confirm('Supprimer ce dessin ?')) dbDel(GAL.find(x => String(x.id) === b.dataset.id).id).then(() => { S.drawings = Math.max(0, S.drawings - 1); save(); renderGallery(); }); break;
@@ -1016,13 +1038,7 @@ app.addEventListener('click', e => {
 function setTool(t) {
   D.tool = t; $$('[data-a=tool]').forEach(x => x.classList.toggle('on', x.dataset.t === t));
   $('#stamps').hidden = t !== 'stamp';
-  setTimeout(sizeCanvasKeep, 0);
-}
-function sizeCanvasKeep() { // la barre des tampons change la taille du dessin : on garde l'image
-  if (!D) return; const r = $('#cw').getBoundingClientRect();
-  if (Math.abs(r.width * D.scale - D.cv.width) > 2 || Math.abs(r.height * D.scale - D.cv.height) > 2) {
-    const u = D.undo; sizeCanvas(); D.undo = u.length && u[0].width === D.cv.width && u[0].height === D.cv.height ? u : [];
-  }
+  setTimeout(fitPaper, 0);
 }
 // clavier : réponses écrites
 app.addEventListener('submit', e => { e.preventDefault(); if (G && !G.answered) { const ti = $('#ti'); submit(ti ? ti.value : ''); } });

@@ -31,4 +31,5 @@ Modes: articles (der/die/das), verb conjugation (all 6 persons), vocabulary & sp
 
 1. In `deutsch/words.js`, add a line to `weeks` (e.g. `{ week: 1, label: "Semaine du 3 novembre" }`) and add the new nouns/verbs/words with `week: 1`.
    The newest week comes up about 3.5× more often; all older words stay in rotation.
-2. Change `VERSION` in `deutsch/sw.js` (e.g. `deutsch-v2`) so the iPhone/iPad picks up the update.
+2. Drawing rewards use the kawaii backgrounds in `deutsch/scenes.js` (one per place: bedroom, kitchen, park, zoo…). A new place word only appears in drawing ideas once a scene lists it in `places`.
+3. Change `VERSION` in `deutsch/sw.js` (e.g. `deutsch-v2`) so the iPhone/iPad picks up the update.
