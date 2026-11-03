@@ -18,7 +18,7 @@ const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 // ---------------------------------------------------------------- sauvegarde
 const KEY = 'deutschParty.v1';
 const DEFAULTS = () => ({
-  player: { name: 'Alinka', avatar: '🐱' },
+  player: { name: 'Alinka', avatar: '🐥' },
   settings: { sound: true, music: true, speak: true, qCount: 10, time: 20, level: 'auto', typing: true },
   stats: {}, persons: {}, history: [], stars: 0, games: 0, wins: 0, drawings: 0, pending: []
 });
@@ -29,6 +29,7 @@ function load() {
     const s = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (s) { Object.assign(d, s); d.player = Object.assign(DEFAULTS().player, s.player); d.settings = Object.assign(DEFAULTS().settings, s.settings); }
   } catch (e) { /* rien */ }
+  if (!d.chick) { if (d.player.avatar === '🐱') d.player.avatar = '🐥'; d.chick = true; }
   return d;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* plein ou bloqué */ } }
@@ -86,7 +87,7 @@ const Snd = {
   },
   good() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.2, 'triangle', 0.18, i * 0.07)); },
   almost() { [523, 659].forEach((f, i) => this.tone(f, 0.2, 'triangle', 0.15, i * 0.09)); },
-  bad() { this.tone(240, 0.25, 'sawtooth', 0.07); this.tone(180, 0.4, 'sawtooth', 0.07, 0.14); },
+  bad() { this.tone(523, 0.22, 'sine', 0.1); this.tone(440, 0.3, 'sine', 0.09, 0.16); },
   tick() { this.tone(1300, 0.05, 'square', 0.035); },
   pop() { this.tone(880, 0.07, 'sine', 0.07); },
   tap() { this.tone(600, 0.05, 'triangle', 0.08); },
@@ -112,19 +113,32 @@ const Music = {
   },
   stop() { clearInterval(this.timer); this.timer = null; }
 };
-function speak(text) {
+// Voix douces : on préfère une voix féminine « améliorée », un peu plus lente et plus aiguë.
+const SOFT = ['anna', 'petra', 'helena', 'marlene', 'vicki', 'katja', 'amélie', 'amelie', 'audrey', 'aurélie', 'aurelie', 'marie', 'céline', 'celine', 'virginie', 'sandy', 'shelley', 'flo'];
+const NOVELTY = /grandpa|grandma|rocko|eddy|reed|albert|bad news|bells|boing|bubbles|cellos|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy/i;
+function pickVoice(lang) {
+  const vs = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith(lang) && !NOVELTY.test(v.name));
+  const score = v => (/premium|enhanced|natural|neural/i.test(v.name) ? 10 : 0) + (SOFT.some(n => v.name.toLowerCase().includes(n)) ? 5 : 0) + (/^(de-de|fr-fr|fr-ch)/i.test(v.lang) ? 1 : 0);
+  return vs.sort((a, b) => score(b) - score(a))[0] || null;
+}
+function utter(text, lang) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang === 'fr' ? 'fr-FR' : 'de-DE';
+  const v = pickVoice(lang); if (v) u.voice = v;
+  u.rate = 0.82; u.pitch = 1.15; u.volume = 0.9;
+  return u;
+}
+// pre = petite phrase gentille en français dite avant la réponse allemande
+function speak(text, pre) {
   if (!S.settings.speak || !('speechSynthesis' in window) || !text) return;
   try {
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/_+/g, ''));
-    u.lang = 'de-DE';
-    const vs = speechSynthesis.getVoices();
-    const v = vs.find(x => /^de[-_]DE/i.test(x.lang)) || vs.find(x => /^de/i.test(x.lang));
-    if (v) u.voice = v;
-    u.rate = 0.88;
-    speechSynthesis.speak(u);
+    if (pre) speechSynthesis.speak(utter(pre, 'fr'));
+    speechSynthesis.speak(utter(text.replace(/_+/g, ''), 'de'));
   } catch (e) { /* pas de voix */ }
 }
+const KIND = ['Pas grave ! La bonne réponse, c\'est :', 'Ce n\'est pas grave, on apprend ! C\'est :', 'Presque ! Écoute bien :', 'Pas de souci ! On dit :'];
+const KIND_ALMOST = ['Presque ! Bravo, c\'est :', 'Tu y es presque ! C\'est :'];
 
 // ---------------------------------------------------------------- personnages
 const BOT_POOL = [
@@ -133,7 +147,7 @@ const BOT_POOL = [
   { name: 'Moka', em: '🐻', bg: '#f6e6da' }, { name: 'Pipou', em: '🐧', bg: '#e2f0ff' }, { name: 'Choupi', em: '🦊', bg: '#ffe6d6' },
   { name: 'Bao', em: '🐹', bg: '#fff0e0' }, { name: 'Koala', em: '🐨', bg: '#edf0f2' }, { name: 'Praline', em: '🐷', bg: '#ffe4ea' }
 ];
-const AVATARS = ['🐱', '🐰', '🐼', '🦄', '🦊', '🐻', '🐨', '🐹', '🐧', '🐸', '🐥', '🐶', '🐯', '🐮', '🐷', '🐙', '🦋', '🌸', '🍓', '🧁'];
+const AVATARS = ['🐥', '🐱', '🐰', '🐼', '🦄', '🦊', '🐻', '🐨', '🐹', '🐧', '🐸', '🐣', '🐶', '🐯', '🐮', '🐷', '🐙', '🦋', '🌸', '🍓', '🧁'];
 const NAMES_F = ['Lea', 'Mia', 'Laura', 'Emma', 'Nina', 'Sofia'];
 const NAMES_M = ['Tom', 'Luca', 'Max', 'Noah', 'Leo', 'Elias'];
 const CITIES = [{ de: 'Genf', fr: 'Genève' }, { de: 'Zürich', fr: 'Zurich' }, { de: 'Bern', fr: 'Berne' }, { de: 'Basel', fr: 'Bâle' }, { de: 'Luzern', fr: 'Lucerne' }, { de: 'München', fr: 'Munich' }];
@@ -142,15 +156,16 @@ const ROOMS = [{ de: 'Im Wohnzimmer', fr: 'Dans le salon' }, { de: 'Im Schlafzim
 function mascot() {
   return `<svg viewBox="0 0 120 120" aria-hidden="true">
 <ellipse cx="60" cy="113" rx="34" ry="5" fill="#3a2d5c" opacity=".08"/>
-<path d="M22 54 L27 16 L52 36 Z" fill="#fff" stroke="#3a2d5c" stroke-width="4" stroke-linejoin="round"/>
-<path d="M98 54 L93 16 L68 36 Z" fill="#fff" stroke="#3a2d5c" stroke-width="4" stroke-linejoin="round"/>
-<path d="M29 40 L31 25 L42 34 Z" fill="#ffb3d1"/><path d="M91 40 L89 25 L78 34 Z" fill="#ffb3d1"/>
-<ellipse cx="60" cy="68" rx="45" ry="39" fill="#fff" stroke="#3a2d5c" stroke-width="4"/>
-<ellipse cx="43" cy="66" rx="6.5" ry="8.5" fill="#3a2d5c"/><circle cx="45.5" cy="62.5" r="2.6" fill="#fff"/>
-<ellipse cx="77" cy="66" rx="6.5" ry="8.5" fill="#3a2d5c"/><circle cx="79.5" cy="62.5" r="2.6" fill="#fff"/>
-<ellipse cx="31" cy="80" rx="8" ry="4.5" fill="#ffb3d1"/><ellipse cx="89" cy="80" rx="8" ry="4.5" fill="#ffb3d1"/>
-<path d="M53 78 q3.5 4.5 7 0 q3.5 4.5 7 0" fill="none" stroke="#3a2d5c" stroke-width="3" stroke-linecap="round"/>
-<g transform="translate(84 30) rotate(18)"><path d="M0 0 L-13 -8 L-13 8 Z" fill="#ff8fc1" stroke="#3a2d5c" stroke-width="2.5" stroke-linejoin="round"/><path d="M0 0 L13 -8 L13 8 Z" fill="#ff8fc1" stroke="#3a2d5c" stroke-width="2.5" stroke-linejoin="round"/><circle r="4" fill="#ffd25e" stroke="#3a2d5c" stroke-width="2.5"/></g>
+<path d="M44 104 l-6 8 M44 104 l0 9 M44 104 l6 8 M76 104 l-6 8 M76 104 l0 9 M76 104 l6 8" stroke="#ff9a3c" stroke-width="4" stroke-linecap="round"/>
+<path d="M60 24 q-4 -14 6 -16 q-2 8 2 12 q6 -6 12 -2 q-8 2 -10 8" fill="#ffd25e" stroke="#3a2d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<ellipse cx="60" cy="66" rx="44" ry="42" fill="#ffe27a" stroke="#3a2d5c" stroke-width="4"/>
+<path d="M18 70 q-12 -6 -8 -20 q10 4 14 12" fill="#ffd25e" stroke="#3a2d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M102 70 q12 -6 8 -20 q-10 4 -14 12" fill="#ffd25e" stroke="#3a2d5c" stroke-width="3.5" stroke-linejoin="round"/>
+<ellipse cx="43" cy="60" rx="6.5" ry="8.5" fill="#3a2d5c"/><circle cx="45.5" cy="56.5" r="2.6" fill="#fff"/>
+<ellipse cx="77" cy="60" rx="6.5" ry="8.5" fill="#3a2d5c"/><circle cx="79.5" cy="56.5" r="2.6" fill="#fff"/>
+<ellipse cx="30" cy="76" rx="8" ry="4.5" fill="#ffab9e"/><ellipse cx="90" cy="76" rx="8" ry="4.5" fill="#ffab9e"/>
+<path d="M52 70 L68 70 L60 81 Z" fill="#ff9a3c" stroke="#3a2d5c" stroke-width="3" stroke-linejoin="round"/>
+<g transform="translate(86 34) rotate(18)"><path d="M0 0 L-12 -8 L-12 8 Z" fill="#ff8fc1" stroke="#3a2d5c" stroke-width="2.5" stroke-linejoin="round"/><path d="M0 0 L12 -8 L12 8 Z" fill="#ff8fc1" stroke="#3a2d5c" stroke-width="2.5" stroke-linejoin="round"/><circle r="4" fill="#fff" stroke="#3a2d5c" stroke-width="2.5"/></g>
 </svg>`;
 }
 
@@ -604,14 +619,14 @@ function submit(value, timeout) {
     });
   }
   if (res === true) Snd.good(); else if (res === 'almost') Snd.almost(); else Snd.bad();
-  setTimeout(() => speak(q.say), 300);
+  setTimeout(() => speak(q.say, res === true ? '' : res === 'almost' ? rnd(KIND_ALMOST) : rnd(KIND)), 300);
   setTimeout(() => showFeedback(res, pts, why), 750);
 }
 
 const CHEERS = ['Bravo !', 'Super !', 'Génial !', 'Toll !', 'Prima !', 'Wunderbar !', 'Klasse !'];
 function showFeedback(res, pts, why) {
   const q = G.q;
-  const v = res === true ? { c: 'ok', e: rnd(['🎉', '🌟', '💖', '🥳']), t: rnd(CHEERS) } : res === 'almost' ? { c: 'almost', e: '🤏', t: 'Presque !' } : { c: 'ko', e: rnd(['🙈', '😿', '🫣']), t: 'Oups !' };
+  const v = res === true ? { c: 'ok', e: rnd(['🎉', '🌟', '💖', '🥳']), t: rnd(CHEERS) } : res === 'almost' ? { c: 'almost', e: '🤏', t: 'Presque !' } : { c: 'ko', e: rnd(['🤗', '🌱', '💛', '🐣']), t: rnd(['Pas grave !', 'On apprend !', 'Presque !']) };
   const all = everyone();
   const rows = all.map((p, i) => {
     const mv = p.prev > i ? '<span class="mv up">▲</span>' : p.prev < i ? '<span class="mv down">▼</span>' : '<span class="mv"></span>';
@@ -625,6 +640,7 @@ function showFeedback(res, pts, why) {
     ${G.me.streak >= 2 ? `<div class="pill" style="margin-top:6px">🔥 ${G.me.streak} bonnes réponses de suite !</div>` : ''}
     <div class="answer-line"><span>${q.answerHtml}</span><button class="say" data-a="say">🔊</button></div>
     ${why ? `<div class="muted" style="font-weight:700">${why}</div>` : ''}
+    ${res === false ? `<div style="font-weight:800;color:#8f78f0;margin-top:4px">${rnd(['Tu vas y arriver ! 💪', 'La prochaine fois, ce sera la bonne ! 🌈', 'Chaque erreur t\'aide à apprendre 💛'])}</div>` : ''}
     ${q.tip ? `<div class="tip">💡 ${q.tip}</div>` : ''}
     <div class="board">${rows}</div>
     <button class="btn big" style="width:100%" data-a="next">${last ? 'Résultats 🏆' : 'Suivant ▶'}</button></div>`;
