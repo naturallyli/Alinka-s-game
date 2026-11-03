@@ -529,8 +529,9 @@ function renderQuestion() {
   let answers;
   if (q.type === 'type') {
     answers = `<form class="typebox" id="tb">
-      <input id="ti" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="${esc(q.placeholder || '')}">
-      <div class="keys"><button type="button" data-k="ä">ä</button><button type="button" data-k="ö">ö</button><button type="button" data-k="ü">ü</button><button type="submit" class="btn mint" style="flex:2">OK ✓</button></div></form>`;
+      <div class="tb-row"><input id="ti" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="${esc(q.placeholder || '')}"><button type="submit" class="btn mint go" aria-label="Valider">✓</button></div>
+      <div class="keys"><button type="button" data-k="ä">ä</button><button type="button" data-k="ö">ö</button><button type="button" data-k="ü">ü</button></div>
+      <div class="tb-help">✍️ Écris ta réponse, puis appuie sur le bouton vert <b>✓</b><br>(ou sur la touche « Envoyer » du clavier)</div></form>`;
   } else {
     answers = `<div class="answers ${q.layout === 'three' ? 'three' : q.layout === 'two' ? 'three two' : q.layout === 'list' ? 'list' : ''}">${q.choices.map((c, i) =>
       `<button class="ans ${c.cls}" data-a="ans" data-i="${i}"><span class="sh">${SH[i % 4]}</span>${c.label}</button>`).join('')}</div>`;
@@ -541,6 +542,7 @@ function renderQuestion() {
     <div class="bots">${G.bots.map((b, i) => `<div class="bot" id="bot${i}" style="background:${b.bg}">${b.em}</div>`).join('')}</div>
     <div class="card prompt"><span class="kind">${q.kindLabel}</span>${q.isNew ? '<span class="badge-new">Nouveau !</span>' : ''}${q.html}</div>
     ${answers}</div></div>`;
+  const ti = $('#ti'); if (ti) { try { ti.focus(); } catch (e) { /* rien */ } }
 }
 function tick() {
   if (!G || G.answered || !G.q) return;
@@ -1091,7 +1093,26 @@ function setTool(t) {
   setTimeout(fitPaper, 0);
 }
 // clavier : réponses écrites
-app.addEventListener('submit', e => { e.preventDefault(); if (G && !G.answered) { const ti = $('#ti'); submit(ti ? ti.value : ''); } });
+function sendTyped() {
+  if (!G || G.answered) return;
+  const ti = $('#ti'); if (!ti) return;
+  if (!ti.value.trim()) { const tb = $('#tb'); tb.classList.remove('empty'); void tb.offsetWidth; tb.classList.add('empty'); ti.focus(); return; } // vide : on n'envoie pas
+  submit(ti.value);
+}
+app.addEventListener('submit', e => { e.preventDefault(); sendTyped(); });
+app.addEventListener('keydown', e => { if (e.target.id === 'ti' && (e.key === 'Enter' || e.keyCode === 13)) { e.preventDefault(); sendTyped(); } });
+// Clavier de l'iPhone/iPad : le jeu se rétrécit au-dessus du clavier pour que la case et le bouton ✓ restent visibles.
+if (window.visualViewport) {
+  const fit = () => {
+    const vv = window.visualViewport, typing = document.activeElement && document.activeElement.id === 'ti';
+    const kb = typing && vv.height < window.innerHeight - 80;
+    document.body.classList.toggle('kb', !!kb);
+    app.style.top = kb ? vv.offsetTop + 'px' : ''; app.style.bottom = kb ? 'auto' : ''; app.style.height = kb ? vv.height + 'px' : '';
+    if (kb) window.scrollTo(0, 0);
+  };
+  visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit);
+  document.addEventListener('focusin', () => setTimeout(fit, 50)); document.addEventListener('focusout', () => setTimeout(fit, 50));
+}
 app.addEventListener('pointerdown', e => {
   const k = e.target.closest('[data-k]'); if (!k) return;
   e.preventDefault();

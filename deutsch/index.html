@@ -145,7 +145,17 @@ h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.1; }
 .typebox { display: flex; flex-direction: column; gap: 10px; }
 .typebox input { font-family: var(--display); font-weight: 700; font-size: 28px; padding: 12px 16px; border-radius: 18px; border: 4px solid var(--lav); outline: none; background: #fff; color: var(--ink); width: 100%; }
 .typebox input:focus { border-color: var(--pink); }
+.typebox .tb-row { display: flex; gap: 8px; align-items: stretch; }
+.typebox .tb-row input { flex: 1; min-width: 0; }
+.typebox .go { flex: none; width: 76px; font-size: 34px; padding: 0; border-radius: 18px; }
+.typebox .tb-help { text-align: center; font-weight: 800; color: var(--ink-soft); font-size: 15px; line-height: 1.35; }
+.typebox.empty .tb-row { animation: shake .4s; }
 .typebox .keys { display: flex; gap: 8px; }
+body.kb .q-screen { padding-top: 6px; gap: 6px; }
+body.kb .bots, body.kb .prompt .emo, body.kb .prompt .kind, body.kb .prompt .badge-new, body.kb .typebox .tb-help { display: none; }
+body.kb .prompt { min-height: 0; flex: none; padding: 10px 12px; }
+body.kb .prompt .main { font-size: 24px; }
+body.kb .clock { width: 40px; height: 40px; font-size: 20px; }
 .typebox .keys button { flex: 1; font-family: var(--display); font-size: 26px; font-weight: 800; background: #fff; border-radius: 14px; padding: 6px; box-shadow: 0 4px 0 var(--line); }
 .typebox.wrongtype input { border-color: var(--t-red); animation: shake .4s; }
 .typebox.righttype input { border-color: var(--t-green); }
