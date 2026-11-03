@@ -172,9 +172,17 @@ function mascot() {
 // ---------------------------------------------------------------- pronoms
 const PRON = [['ich', 'je'], ['du', 'tu'], null, ['wir', 'nous'], ['ihr', 'vous'], ['sie', 'ils / elles']];
 const P3 = [['er', 'il'], ['sie', 'elle'], ['es', 'il (neutre)']];
+const PEEP = { er: '👦', sie: '👧', es: '👶' };
 function pronoun(p, noSie) {
-  if (p === 2) { const o = noSie ? rnd([P3[0], P3[2]]) : rnd(P3); return { de: o[0], fr: o[1] }; }
-  return { de: PRON[p][0], fr: PRON[p][1] };
+  if (p === 2) { const o = noSie ? rnd([P3[0], P3[2]]) : rnd(P3); return { de: o[0], fr: o[1], em: PEEP[o[0]] }; }
+  return { de: PRON[p][0], fr: PRON[p][1], em: p === 5 ? '👧👦' : '' };
+}
+// Pastille du pronom + « singulier / pluriel » bien visible (surtout pour sie = elle / sie = ils, elles)
+function pronHtml(pr, p) {
+  return `<span class="pron">${pr.em ? pr.em + ' ' : ''}${pr.de}<small>${pr.fr}</small></span>`;
+}
+function numBadge(p) {
+  return p < 3 ? '<div class="num sg">👤 singulier · une seule personne</div>' : '<div class="num pl">👥 pluriel · plusieurs personnes</div>';
 }
 function subjectFor(p) {
   return [() => 'Ich', () => 'Du', () => rnd(['Er', 'Lea', 'Tom', 'Mama', 'Papa']), () => 'Wir', () => 'Ihr', () => rnd(['Die Kinder', 'Mama und Papa', 'Lea und Tom'])][p]();
@@ -185,9 +193,9 @@ function verbCtx(v) {
   return c;
 }
 function conjTable(v, p) {
-  const lab = ['ich', 'du', 'er/sie/es', 'wir', 'ihr', 'sie'];
+  const lab = ['ich', 'du', 'er/sie/es <small>(il/elle)</small>', 'wir', 'ihr', 'sie <small>(ils/elles)</small>'];
   const cell = i => `<span>${lab[i]}</span><span class="${i === p ? 'hl' : ''}">${esc(v.forms[i])}</span>`;
-  return `<div><b>${esc(v.inf)}</b> (${esc(v.fr)})</div><div class="conj">${cell(0)}${cell(3)}${cell(1)}${cell(4)}${cell(2)}${cell(5)}</div>`;
+  return `<div><b>${esc(v.inf)}</b> (${esc(v.fr)})</div><div class="conj"><span class="num sg" style="grid-column:1/3;justify-self:start">👤 singulier</span><span class="num pl" style="grid-column:3/5;justify-self:start">👥 pluriel</span>${cell(0)}${cell(3)}${cell(1)}${cell(4)}${cell(2)}${cell(5)}</div>`;
 }
 function artTip(n) {
   if (n.tip) return n.tip;
@@ -253,8 +261,8 @@ const GEN = {
     const ctxs = verbCtx(v), ctx = ctxs.length && Math.random() < 0.65 ? ' ' + rnd(ctxs) : '';
     const q = {
       cat: 'verbes', kindLabel: typing ? 'Écris le verbe' : 'Conjugue !', isNew: isNew(v), person: [v.inf, p],
-      html: `${emo(v.emoji)}<div class="sentence"><span class="pron">${pr.de}<small>${pr.fr}</small></span> ${BL}${esc(ctx)}.</div><div class="hint">${esc(v.inf)} = ${esc(v.fr)}</div>`,
-      answerHtml: `${pr.de} <b>${esc(f)}</b>${esc(ctx)}.`, say: `${pr.de} ${f}${ctx}.`, tip: conjTable(v, p),
+      html: `${emo(v.emoji)}<div class="sentence">${pronHtml(pr, p)} ${BL}${esc(ctx)}.</div>${numBadge(p)}<div class="hint">${esc(v.inf)} = ${esc(v.fr)}</div>`,
+      answerHtml: `${pr.em ? pr.em + ' ' : ''}${pr.de} <b>${esc(f)}</b>${esc(ctx)}.${p === 2 && pr.de === 'sie' ? ' <small class="muted">(sie = elle, singulier)</small>' : p === 5 ? ' <small class="muted">(sie = ils/elles, pluriel)</small>' : ''}`, say: `${pr.de} ${f}${ctx}.`, tip: conjTable(v, p),
       keys: ['c:' + v.inf], review: `${pr.de} ___${ctx} (${v.inf})`, answerPlain: `${pr.de} ${f}`
     };
     if (typing) { q.type = 'type'; q.accept = f; q.lower = true; q.placeholder = v.inf + ' …'; return q; }
@@ -272,7 +280,7 @@ const GEN = {
     const valid = [0, 1, 2, 3, 4, 5].filter(i => v.forms[i] === f);
     const invalid = shuffle([0, 1, 2, 3, 4, 5].filter(i => !valid.includes(i))).slice(0, 3);
     const er = rnd(['er', 'es']);
-    const lab = i => i === 2 ? er : i === 5 ? 'sie (ils/elles)' : PRON[i][0];
+    const lab = i => i === 2 ? er : i === 5 ? 'sie (pluriel 👧👦)' : PRON[i][0];
     const ctxs = verbCtx(v), ctx = ctxs.length && Math.random() < 0.6 ? ' ' + rnd(ctxs) : '';
     const choices = shuffle([p, ...invalid]).map((i, k) => ({ label: esc(lab(i)), value: lab(i), cls: 'c' + k }));
     return {
@@ -626,7 +634,7 @@ function submit(value, timeout) {
 const CHEERS = ['Bravo !', 'Super !', 'Génial !', 'Toll !', 'Prima !', 'Wunderbar !', 'Klasse !'];
 function showFeedback(res, pts, why) {
   const q = G.q;
-  const v = res === true ? { c: 'ok', e: rnd(['🎉', '🌟', '💖', '🥳']), t: rnd(CHEERS) } : res === 'almost' ? { c: 'almost', e: '🤏', t: 'Presque !' } : { c: 'ko', e: rnd(['🤗', '🌱', '💛', '🐣']), t: rnd(['Pas grave !', 'On apprend !', 'Presque !']) };
+  const v = res === true ? { c: 'ok', e: rnd(['🎉', '🌟', '💖', '🥳']), t: rnd(CHEERS) } : res === 'almost' ? { c: 'almost', e: '🤏', t: 'Presque !' } : { c: 'ko', e: rnd(['🤗', '🌱', '💛', '🐣']), t: rnd(['Pas grave !', 'On apprend !', 'Courage !']) };
   const all = everyone();
   const rows = all.map((p, i) => {
     const mv = p.prev > i ? '<span class="mv up">▲</span>' : p.prev < i ? '<span class="mv down">▼</span>' : '<span class="mv"></span>';
@@ -1101,7 +1109,7 @@ addEventListener('keydown', e => {
 if ('speechSynthesis' in window) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (e) { /* rien */ } }
 
 // test hooks (utilisés seulement par les tests automatiques)
-window.__DP = { GEN, get G() { return G; }, setG(v) { G = v; }, misspellings, makeIdea, gradeType, MODES };
+window.__DP = { render: () => renderQuestion(), GEN, get G() { return G; }, setG(v) { G = v; }, misspellings, makeIdea, gradeType, MODES };
 
 renderHome();
 })();

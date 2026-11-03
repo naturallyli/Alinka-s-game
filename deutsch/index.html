@@ -116,7 +116,11 @@ h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.1; }
 .prompt .hint { font-weight: 700; color: var(--ink-soft); font-size: clamp(16px, 3.6vw, 20px); }
 .blank { display: inline-block; width: 2.4em; height: .9em; border-bottom: 4px dashed var(--lav); margin: 0 .15em; vertical-align: baseline; }
 .pron { display: inline-block; background: #efe8ff; color: #6b52d6; border-radius: 12px; padding: 0 10px; }
-.pron small { font-size: .5em; color: var(--ink-soft); font-family: var(--body); margin-left: 4px; }
+.pron small { font-size: .55em; color: var(--ink-soft); font-family: var(--body); font-weight: 800; margin-left: 6px; }
+.num { display: inline-block; font-weight: 800; font-size: clamp(14px, 3.4vw, 18px); border-radius: 999px; padding: 4px 12px; }
+.num.sg { background: #e3f0ff; color: #2f6fcc; }
+.num.pl { background: #ffe7d6; color: #c45a12; }
+.conj small { font-size: .78em; }
 .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .answers.three { grid-template-columns: 1fr 1fr 1fr; }
 .answers.two { grid-template-columns: 1fr 1fr; }
