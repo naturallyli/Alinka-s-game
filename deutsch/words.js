@@ -18,7 +18,8 @@
 window.DE_DATA = {
   weeks: [
     { week: 0, label: "Depuis la rentrée (Lektion 7 : Mein Haus, meine Stadt)" },
-    { week: 1, label: "Semaine 1 : la semaine, les jours, l'école" }
+    { week: 1, label: "Semaine 1 : la semaine, les jours, l'école" },
+    { week: 2, label: "Semaine 2 : les matières, les devoirs, finden" }
   ],
 
   nouns: [
@@ -73,9 +74,12 @@ window.DE_DATA = {
     { de: "Samstag", art: "der", pl: null, fr: "samedi", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
     { de: "Sonntag", art: "der", pl: null, fr: "dimanche", emoji: null, week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
     { de: "Morgen", art: "der", pl: null, fr: "le matin", emoji: "🌅", week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
-    { de: "Vormittag", art: "der", pl: null, fr: "la matinée", emoji: "🌤️", week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
-    { de: "Abend", art: "der", pl: null, fr: "le soir", emoji: "🌆", week: 1, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
-    { de: "Fach", art: "das", pl: "Fächer", fr: "la matière (à l'école)", emoji: "📐", week: 1, loc: null }
+    { de: "Vormittag", art: "der", pl: null, fr: "la matinée", emoji: "🌤️", week: 2, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Abend", art: "der", pl: null, fr: "le soir", emoji: "🌆", week: 2, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Fach", art: "das", pl: "Fächer", fr: "la matière (à l'école)", emoji: "📐", week: 2, loc: null },
+    // --- Semaine 2 : l'école
+    { de: "Stunde", art: "die", pl: "Stunden", fr: "l'heure, la leçon", frf: true, emoji: "⏰", week: 2, loc: null },
+    { de: "Hausaufgabe", art: "die", pl: "Hausaufgaben", fr: "le devoir (les devoirs)", emoji: "📝", week: 2, loc: null }
   ],
 
   verbs: [
@@ -85,7 +89,8 @@ window.DE_DATA = {
     { inf: "essen",    fr: "manger",             frAct: "mange un gâteau",   emoji: "🍝", week: 0, forms: ["esse", "isst", "isst", "essen", "esst", "essen"] },
     { inf: "sitzen",   fr: "être assis/e",       frAct: "est assis",  frActF: "est assise", emoji: "💺", week: 0, forms: ["sitze", "sitzt", "sitzt", "sitzen", "sitzt", "sitzen"] },
     { inf: "lesen",    fr: "lire",               frAct: "lit un livre",      emoji: "📖", week: 0, forms: ["lese", "liest", "liest", "lesen", "lest", "lesen"] },
-    { inf: "gehen",    fr: "aller",              frAct: "se promène",        emoji: "🚶", week: 0, forms: ["gehe", "gehst", "geht", "gehen", "geht", "gehen"], ctx: ["zu Fuss zur Schule", "zu Fuss in den Park"] }
+    { inf: "gehen",    fr: "aller",              frAct: "se promène",        emoji: "🚶", week: 0, forms: ["gehe", "gehst", "geht", "gehen", "geht", "gehen"], ctx: ["zu Fuss zur Schule", "zu Fuss in den Park"] },
+    { inf: "finden",   fr: "trouver (penser)",   frAct: "trouve ça génial",  emoji: "🤔", week: 2, forms: ["finde", "findest", "findet", "finden", "findet", "finden"], ctx: ["Musik toll", "Sport lustig", "Englisch langweilig", "die Hausaufgabe blöd", "Kunst toll", "Sachunterricht langweilig"] }
   ],
 
   // Autres mots (adjectifs, petites phrases) : seulement dans « Vocabulaire »
@@ -107,8 +112,16 @@ window.DE_DATA = {
     // --- Semaine 1
     { de: "heute", fr: "aujourd'hui", emoji: null, week: 1 },
     { de: "morgen", fr: "demain", emoji: null, week: 1 },
-    { de: "Englisch", fr: "l'anglais", emoji: "🇬🇧", week: 1 },
-    { de: "nach Hause gehen", fr: "rentrer à la maison", emoji: "🏡", week: 1 }
+    { de: "Englisch", fr: "l'anglais", emoji: "🇬🇧", week: 2 },
+    { de: "nach Hause gehen", fr: "rentrer à la maison", emoji: "🏡", week: 2 },
+    // --- Semaine 2 : les matières (sans article, comme sur la fiche)
+    { de: "Musik", fr: "la musique", emoji: "🎵", week: 2 },
+    { de: "Kunst", fr: "les arts visuels (le dessin)", emoji: "🎨", week: 2 },
+    { de: "Sport", fr: "le sport (la gym)", emoji: "⚽", week: 2 },
+    { de: "Sachunterricht", fr: "les sciences (la découverte du monde)", emoji: "🔬", week: 2 },
+    { de: "Ich habe frei.", fr: "Je suis libre. (pas d'école)", emoji: "🎉", week: 2 },
+    { de: "blöd", fr: "bête, nul/le", emoji: "🙄", week: 2 },
+    { de: "langweilig", fr: "ennuyeux, ennuyeuse", emoji: "🥱", week: 2 }
   ],
 
   // Règles de grammaire (le code de chaque règle est dans app.js)
