@@ -19,7 +19,8 @@ window.DE_DATA = {
   weeks: [
     { week: 0, label: "Depuis la rentrée (Lektion 7 : Mein Haus, meine Stadt)" },
     { week: 1, label: "Semaine 1 : la semaine, les jours, l'école" },
-    { week: 2, label: "Semaine 2 : les matières, les devoirs, finden" }
+    { week: 2, label: "Semaine 2 : les matières, les devoirs, finden" },
+    { week: 3, label: "Semaine 3 : les verbes séparables (anrufen …)" }
   ],
 
   nouns: [
@@ -93,6 +94,17 @@ window.DE_DATA = {
     { inf: "finden",   fr: "trouver (penser)",   frAct: "trouve ça génial",  emoji: "🤔", week: 2, forms: ["finde", "findest", "findet", "finden", "findet", "finden"], ctx: ["Musik toll", "Sport lustig", "Englisch langweilig", "die Hausaufgabe blöd", "Kunst toll", "Sachunterricht langweilig"] }
   ],
 
+  // Verbes séparables : la particule (sep) va à la fin de la phrase.
+  //   base    = verbe sans la particule : [ich, du, er/sie/es, wir, ihr, sie]
+  //   frForms = verbe français sans le pronom (même ordre)
+  //   objs    = compléments pour faire des phrases : [allemand, français] ("" = sans complément)
+  sepVerbs: [
+    { inf: "anrufen", sep: "an", fr: "appeler (au téléphone)", emoji: "📞", week: 3,
+      base: ["rufe", "rufst", "ruft", "rufen", "ruft", "rufen"],
+      frForms: ["appelle", "appelles", "appelle", "appelons", "appelez", "appellent"],
+      objs: [["Lea", "Lea"], ["Mama", "maman"], ["Papa", "papa"], ["Tom", "Tom"], ["Oma", "mamie"]] }
+  ],
+
   // Autres mots (adjectifs, petites phrases) : seulement dans « Vocabulaire »
   words: [
     { de: "bunt", fr: "multicolore", emoji: "🌈", week: 0 },
@@ -129,6 +141,7 @@ window.DE_DATA = {
     { id: "poss",   week: 0, title: "sein / seine – ihr / ihre" },
     { id: "lieu",   week: 0, title: "im – in der – auf dem" },
     { id: "esgibt", week: 0, title: "es gibt …" },
-    { id: "morgen", week: 1, title: "morgen (demain) ≠ der Morgen (le matin)" }
+    { id: "morgen", week: 1, title: "morgen (demain) ≠ der Morgen (le matin)" },
+    { id: "sep", week: 3, title: "Verbes séparables : anrufen → ich rufe … an" }
   ]
 };

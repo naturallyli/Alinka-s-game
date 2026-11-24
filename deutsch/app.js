@@ -39,7 +39,8 @@ try { navigator.storage && navigator.storage.persist && navigator.storage.persis
 const NOUNS = DATA.nouns.map(n => Object.assign({}, n, { type: 'n', id: 'n:' + n.de, disp: n.art + ' ' + n.de }));
 const VERBS = DATA.verbs.map(v => Object.assign({}, v, { type: 'v', id: 'v:' + v.inf, de: v.inf, disp: v.inf }));
 const WORDS = DATA.words.map(w => Object.assign({}, w, { type: 'w', id: 'w:' + w.de, disp: w.de }));
-const VOCAB = [...NOUNS, ...VERBS, ...WORDS];
+const SEPV = (DATA.sepVerbs || []).map(v => Object.assign({}, v, { type: 'v', id: 'v:' + v.inf, de: v.inf, disp: v.inf, isSep: true }));
+const VOCAB = [...NOUNS, ...VERBS, ...SEPV, ...WORDS];
 const RULES = DATA.grammar;
 const MAXW = Math.max(0, ...VOCAB.map(x => x.week || 0), ...RULES.map(r => r.week || 0));
 const isNew = x => MAXW > 0 && (x.week || 0) === MAXW;
@@ -344,14 +345,90 @@ const GEN = {
     };
   },
   gram() {
-    const r = pickW(RULES, x => weekFactor(x.week) * boxFactor('g:' + x.id));
+    const r = pickW(RULES.filter(x => x.id !== 'sep' || SEPV.length), x => weekFactor(x.week) * boxFactor('g:' + x.id));
     const q = GRAM[r.id]();
-    q.cat = 'grammaire'; q.keys = ['g:' + r.id]; q.isNew = isNew(r);
+    q.cat = 'grammaire'; q.keys = ['g:' + r.id, ...(q.keys || [])]; q.isNew = q.isNew || isNew(r);
     return q;
   }
 };
 
+// ---------------------------------------------------------------- verbes séparables
+const TIMES = [['heute', "Aujourd'hui"], ['morgen', 'Demain']];
+function sepSentence(v, p) {
+  const f = v.base[p], pr = p === 2 ? rnd(['er', 'sie']) : PRON[p][0];
+  const o = rnd(v.objs), ow = o[0] ? o[0].split(' ') : [];
+  const time = Math.random() < 0.4 ? rnd(TIMES) : null;
+  const words = time ? [cap(time[0]), f, pr, ...ow, v.sep] : [cap(pr), f, ...ow, v.sep];
+  const fp = p === 2 ? (pr === 'er' ? 'il' : 'elle') : p === 5 ? rnd(['ils', 'elles']) : ['je', 'tu', '', 'nous', 'vous'][p];
+  const ff = v.frForms[p], sv = fp === 'je' && /^[aeiouhéèê]/i.test(ff) ? "j'" + ff : fp + ' ' + ff;
+  const fr = (time ? time[1] + ', ' + sv : cap(sv)) + (o[1] ? ' ' + o[1] : '') + '.';
+  return { words, de: words.join(' ') + '.', fr, f, pr, ow, time, p };
+}
+function sepTable(v, p) {
+  const lab = ['ich', 'du', 'er/sie/es', 'wir', 'ihr', 'sie'];
+  const cell = i => `<span>${lab[i]}</span><span class="${i === p ? 'hl' : ''}">${esc(v.base[i])} … <b>${esc(v.sep)}</b></span>`;
+  return `<b>${esc(v.inf)}</b> se coupe en deux : le verbe <b>${esc(v.base[p])}</b> en 2<sup>e</sup> place, la petite particule <b>${esc(v.sep)}</b> tout à la fin de la phrase.<div class="conj"><span class="num sg" style="grid-column:1/3;justify-self:start">👤 singulier</span><span class="num pl" style="grid-column:3/5;justify-self:start">👥 pluriel</span>${cell(0)}${cell(3)}${cell(1)}${cell(4)}${cell(2)}${cell(5)}</div>`;
+}
+function pickSep() { return pickW(SEPV, x => weekFactor(x.week) * boxFactor('c:' + x.inf), x => 'c:' + x.inf); }
+function sepBase(kindLabel, v, sn) {
+  return {
+    cat: 'verbes', kindLabel, isNew: isNew(v), person: [v.inf, sn.p], keys: ['c:' + v.inf],
+    answerHtml: esc(sn.de).replace(new RegExp(' ' + v.sep + '\\.$'), ' <b class="pl">' + v.sep + '</b>.').replace(' ' + sn.f + ' ', ' <b>' + sn.f + '</b> '),
+    say: sn.de, tip: sepTable(v, sn.p), review: sn.fr, answerPlain: sn.de
+  };
+}
+const sepHead = (v, sn) => `${emo(v.emoji)}<div class="main" style="font-size:clamp(22px,5.5vw,34px)">${esc(sn.fr)}</div>${numBadge(sn.p)}<div class="hint">${esc(v.inf)} = ${esc(v.fr)}</div>`;
+Object.assign(GEN, {
+  sepPick() {
+    const v = pickSep(), sn = sepSentence(v, nextPerson());
+    const subjFirst = !sn.time, wrong = new Set();
+    const mk = (verbPart, sepAtEnd, swapOrder) => {
+      const head = subjFirst ? [cap(sn.pr), ...verbPart] : swapOrder ? [cap(sn.time[0]), sn.pr, ...verbPart] : [cap(sn.time[0]), ...verbPart.slice(0, 1), sn.pr, ...verbPart.slice(1)];
+      return (sepAtEnd ? [...head, ...sn.ow, v.sep] : [...head, ...sn.ow]).join(' ') + '.';
+    };
+    wrong.add(mk([v.sep + sn.f], false));                                   // ich anrufe Lea.
+    if (sn.ow.length) wrong.add(mk([sn.f, v.sep], false));                  // ich rufe an Lea.
+    const other = shuffle(v.base.filter(x => x !== sn.f))[0]; if (other) wrong.add(mk([other], true)); // ich ruft Lea an.
+    if (sn.time) wrong.add(mk([sn.f], true, true));                         // Heute ich rufe Lea an.
+    wrong.delete(sn.de);
+    const opts = shuffle([sn.de, ...shuffle([...wrong]).slice(0, 3)]);
+    return Object.assign(sepBase('Choisis la bonne phrase', v, sn), {
+      html: sepHead(v, sn), layout: 'list', choices: mc(opts), correct: sn.de, extraTime: 8
+    });
+  },
+  sepBuild() {
+    const v = pickSep(), sn = sepSentence(v, nextPerson());
+    const low = [sn.words[0].toLowerCase(), ...sn.words.slice(1)];   // pas de majuscule qui trahit le premier mot
+    let tiles = shuffle(low); let g = 0;
+    while (tiles.join(' ') === low.join(' ') && g++ < 10) tiles = shuffle(low);
+    return Object.assign(sepBase('Construis la phrase', v, sn), {
+      html: sepHead(v, sn), type: 'build', tiles, correct: sn.de
+    });
+  },
+  sepType() {
+    const v = pickSep(), sn = sepSentence(v, nextPerson());
+    return Object.assign(sepBase('Écris la phrase', v, sn), {
+      html: sepHead(v, sn), type: 'type', sentence: true, accept: sn.de, sep: v, sn, long: true, placeholder: 'Écris la phrase …'
+    });
+  }
+});
+function gradeSentence(q, text) {
+  const clean = x => norm(x).replace(/[.!?]+$/, '').trim();
+  const t = clean(text), exp = clean(q.accept);
+  if (!t) return { res: false, why: 'Pas de réponse.' };
+  if (t === exp || t.charAt(0).toUpperCase() + t.slice(1) === exp) return { res: true };
+  if (t.toLowerCase() === exp.toLowerCase()) return { res: 'almost', why: 'Presque ! Attention aux <b>majuscules</b>.' };
+  const tw = t.toLowerCase().split(' '), ew = exp.toLowerCase().split(' ');
+  const v = q.sep, sn = q.sn;
+  if (tw.includes((v.sep + sn.f).toLowerCase())) return { res: false, why: `Attention : <b>${esc(v.inf)}</b> se sépare ! On écrit <b>${esc(sn.f)}</b> … <b>${esc(v.sep)}</b>.` };
+  if (tw.slice().sort().join(' ') === ew.slice().sort().join(' ')) return { res: false, why: `Les bons mots, mais pas dans le bon ordre : <b>${esc(v.sep)}</b> va tout à la fin${sn.time ? ', et le verbe vient juste après « ' + esc(cap(sn.time[0])) + ' »' : ''}.` };
+  return { res: false, why: `Tu as écrit : « ${esc(t)} »` };
+}
 const GRAM = {
+  sep() {
+    const k = S.settings.typing ? rnd(['sepPick', 'sepBuild', 'sepBuild', 'sepType']) : rnd(['sepPick', 'sepBuild']);
+    const q = GEN[k](); q.kind = k; return q;
+  },
   morgen() {
     const [sent, k, fr] = rnd(MORGEN), ans = k ? 'Morgen' : 'morgen';
     const [a, b] = sent.split('_');
@@ -451,10 +528,10 @@ function nextPerson() { if (!G.bag.length) G.bag = shuffle([0, 1, 2, 3, 4, 5]); 
 
 const MODES = {
   articles: { title: 'Articles', sub: 'der · die · das', ic: '🎨', kinds: { art: 1 }, keys: 'a:' },
-  verbes: { title: 'Verbes', sub: 'ich, du, er …', ic: '🏃‍♀️', kinds: { conjForm: 5, conjPron: 2, conjType: 2 }, keys: 'c:' },
+  verbes: { title: 'Verbes', sub: 'ich, du, er …', ic: '🏃‍♀️', kinds: Object.assign({ conjForm: 5, conjPron: 2, conjType: 2 }, SEPV.length ? { sepPick: 1, sepBuild: 2, sepType: 1 } : {}), keys: 'c:' },
   vocab: { title: 'Vocabulaire', sub: 'mots & orthographe', ic: '📚', kinds: { fr2de: 3, de2fr: 2, emoji: 2, spellPick: 2, spellType: 2 }, keys: 'v:' },
   grammaire: { title: 'Grammaire', sub: 'sein/ihr · im · es gibt · morgen', ic: '🧩', kinds: { gram: 1 }, keys: 'g:' },
-  mix: { title: 'Grand Quiz', sub: 'Un peu de tout !', ic: '🏆', kinds: { art: 3, conjForm: 2, conjPron: 1, conjType: 1, fr2de: 1, de2fr: 1, emoji: 1, spellPick: 1, spellType: 1, gram: 3 } }
+  mix: { title: 'Grand Quiz', sub: 'Un peu de tout !', ic: '🏆', kinds: Object.assign({ art: 3, conjForm: 2, conjPron: 1, conjType: 1, fr2de: 1, de2fr: 1, emoji: 1, spellPick: 1, spellType: 1, gram: 3 }, SEPV.length ? { sepBuild: 1 } : {}) }
 };
 function pickKind(mode) {
   const ks = Object.entries(MODES[mode].kinds).filter(([k]) => S.settings.typing || !/Type$/.test(k));
@@ -509,11 +586,11 @@ function nextQ() {
   const kind = pickKind(G.mode);
   const q = GEN[kind]();
   q.kind = kind;
-  q.time = q.type === 'type' ? S.settings.time * 2 + 5 : S.settings.time + (q.extraTime || 0);
-  G.q = q; G.i++; G.answered = false;
+  q.time = q.long ? S.settings.time * 3 + 10 : (q.type === 'type' || q.type === 'build') ? S.settings.time * 2 + 5 : S.settings.time + (q.extraTime || 0);
+  G.q = q; G.i++; G.answered = false; G.build = [];
   [G.me, ...G.bots].forEach(p => { p.prev = everyone().indexOf(p); });
   G.bots.forEach(b => {
-    b.ok = Math.random() < b.acc * (q.type === 'type' ? 0.92 : 1);
+    b.ok = Math.random() < b.acc * (q.type === 'type' || q.type === 'build' ? 0.92 : 1);
     b.t = Math.min(q.time * 0.95, q.time * (0.16 + Math.random() * 0.5) * b.spd);
     b.done = false;
   });
@@ -532,6 +609,10 @@ function renderQuestion() {
       <div class="tb-row"><input id="ti" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="${esc(q.placeholder || '')}"><button type="submit" class="btn mint go" aria-label="Valider">✓</button></div>
       <div class="keys"><button type="button" data-k="ä">ä</button><button type="button" data-k="ö">ö</button><button type="button" data-k="ü">ü</button></div>
       <div class="tb-help">✍️ Écris ta réponse, puis appuie sur le bouton vert <b>✓</b><br>(ou sur la touche « Envoyer » du clavier)</div></form>`;
+  } else if (q.type === 'build') {
+    answers = `<div class="build"><div class="build-line" id="bl"></div><div class="build-bank" id="bb"></div>
+      <div class="row"><button class="btn soft" data-a="bclear" style="flex:1">↺ Effacer</button><button class="btn mint" data-a="bok" style="flex:2">✓ Valider</button></div>
+      <div class="tb-help">👆 Touche les mots dans le bon ordre, puis appuie sur <b>✓ Valider</b>.</div></div>`;
   } else {
     answers = `<div class="answers ${q.layout === 'three' ? 'three' : q.layout === 'two' ? 'three two' : q.layout === 'list' ? 'list' : ''}">${q.choices.map((c, i) =>
       `<button class="ans ${c.cls}" data-a="ans" data-i="${i}"><span class="sh">${SH[i % 4]}</span>${c.label}</button>`).join('')}</div>`;
@@ -543,7 +624,15 @@ function renderQuestion() {
     <div class="card prompt"><span class="kind">${q.kindLabel}</span>${q.isNew ? '<span class="badge-new">Nouveau !</span>' : ''}${q.html}</div>
     ${answers}</div></div>`;
   const ti = $('#ti'); if (ti) { try { ti.focus(); } catch (e) { /* rien */ } }
+  if (q.type === 'build') renderBuild();
 }
+function renderBuild() {
+  const q = G.q, bl = $('#bl'), bb = $('#bb'); if (!bl || !bb) return;
+  bl.innerHTML = G.build.length ? G.build.map((i, k) => `<button class="tile" data-a="untile" data-k="${k}">${esc(k ? q.tiles[i] : cap(q.tiles[i]))}</button>`).join('') + '<span class="dot-end">.</span>'
+    : '<span class="muted" style="font-weight:700">Ta phrase apparaît ici…</span>';
+  bb.innerHTML = q.tiles.map((w, i) => `<button class="tile ${G.build.includes(i) ? 'used' : ''}" data-a="tile" data-i="${i}">${esc(w)}</button>`).join('');
+}
+const builtText = () => cap(G.build.map(i => G.q.tiles[i]).join(' ')) + '.';
 function tick() {
   if (!G || G.answered || !G.q) return;
   if (G.paused) { G.raf = requestAnimationFrame(tick); return; }
@@ -559,7 +648,7 @@ function tick() {
   }
   G.bots.forEach((b, i) => { if (!b.done && el >= b.t) { b.done = true; const e = $('#bot' + i); if (e) e.classList.add('done'); } });
   if (left <= 0) {
-    if (q.type === 'type') { const ti = $('#ti'); submit(ti ? ti.value : '', true); } else submit(null, true);
+    if (q.type === 'type') { const ti = $('#ti'); submit(ti ? ti.value : '', true); } else if (q.type === 'build') submit(G.build.length ? builtText() : null, true); else submit(null, true);
     return;
   }
   G.raf = requestAnimationFrame(tick);
@@ -594,7 +683,7 @@ function submit(value, timeout) {
   G.answered = true; cancelAnimationFrame(G.raf); Music.stop();
   const q = G.q, el = Math.min((performance.now() - G.t0) / 1000, q.time);
   let res, why = '';
-  if (q.type === 'type') { const g = gradeType(q, value || ''); res = g.res; why = g.why || ''; }
+  if (q.type === 'type') { const g = q.sentence ? gradeSentence(q, value || '') : gradeType(q, value || ''); res = g.res; why = g.why || ''; }
   else res = value !== null && value === q.correct;
   if (timeout && (value === null || value === '')) why = 'Temps écoulé ! ⏰';
 
@@ -618,7 +707,10 @@ function submit(value, timeout) {
   save();
 
   // affichage
-  if (q.type === 'type') {
+  if (q.type === 'build') {
+    const bl = $('#bl'); if (bl) bl.classList.add(res === true ? 'right' : 'wrong');
+    if (res !== true && value) why = why || `Tu as fait : « ${esc(value)} »`;
+  } else if (q.type === 'type') {
     const tb = $('#tb'); if (tb) tb.classList.add(res === true ? 'righttype' : 'wrongtype');
     const ti = $('#ti'); if (ti) ti.blur();
   } else {
@@ -936,14 +1028,14 @@ function renderViewer(id) {
 
 // ---------------------------------------------------------------- accueil
 function mastery(prefix) {
-  const keys = prefix === 'a:' ? NOUNS.map(n => 'a:' + n.de) : prefix === 'c:' ? VERBS.map(v => 'c:' + v.inf) : prefix === 'v:' ? VOCAB.map(x => 'v:' + x.id) : RULES.map(r => 'g:' + r.id);
+  const keys = prefix === 'a:' ? NOUNS.map(n => 'a:' + n.de) : prefix === 'c:' ? [...VERBS, ...SEPV].map(v => 'c:' + v.inf) : prefix === 'v:' ? VOCAB.map(x => 'v:' + x.id) : RULES.map(r => 'g:' + r.id);
   const pts = keys.reduce((a, k) => a + Math.min((S.stats[k] ? S.stats[k].box : 0), 3), 0);
   return Math.round(100 * pts / (keys.length * 3));
 }
 function hasNew(mode) {
   if (!MAXW) return false;
   if (mode === 'articles') return NOUNS.some(isNew);
-  if (mode === 'verbes') return VERBS.some(isNew);
+  if (mode === 'verbes') return VERBS.some(isNew) || SEPV.some(isNew);
   if (mode === 'vocab') return VOCAB.some(isNew);
   if (mode === 'grammaire') return RULES.some(isNew);
   return VOCAB.some(isNew) || RULES.some(isNew);
@@ -1059,6 +1151,10 @@ app.addEventListener('click', e => {
     case 'home': renderHome(); break;
     case 'again': startGame(G.mode); break;
     case 'quit': if (confirm('Quitter la partie ?')) { if (G) { G.answered = true; cancelAnimationFrame(G.raf); } renderHome(); } break;
+    case 'tile': if (G && !G.answered && !G.build.includes(+b.dataset.i)) { G.build.push(+b.dataset.i); Snd.tap(); renderBuild(); } break;
+    case 'untile': if (G && !G.answered) { G.build.splice(+b.dataset.k, 1); renderBuild(); } break;
+    case 'bclear': if (G && !G.answered) { G.build = []; renderBuild(); } break;
+    case 'bok': if (G && !G.answered) { if (G.build.length < G.q.tiles.length) { const bl = $('#bl'); bl.classList.remove('empty'); void bl.offsetWidth; bl.classList.add('empty'); toast('Utilise tous les mots 🙂'); } else submit(builtText()); } break;
     case 'ans': if (!G || G.answered) return; G.chosen = b.dataset.i; submit(G.q.choices[+b.dataset.i].value); break;
     case 'next': if (G && G.answered) nextQ(); break;
     case 'say': if (G && G.q) speak(G.q.say); break;

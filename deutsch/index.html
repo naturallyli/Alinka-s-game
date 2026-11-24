@@ -151,6 +151,17 @@ h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.1; }
 .typebox .tb-help { text-align: center; font-weight: 800; color: var(--ink-soft); font-size: 15px; line-height: 1.35; }
 .typebox.empty .tb-row { animation: shake .4s; }
 .typebox .keys { display: flex; gap: 8px; }
+.build { display: flex; flex-direction: column; gap: 10px; }
+.build-line { min-height: 64px; background: #fff; border: 4px dashed var(--lav); border-radius: 18px; padding: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.build-line.right { border: 4px solid var(--t-green); }
+.build-line.wrong { border: 4px solid var(--t-red); animation: shake .4s; }
+.build-line.empty { animation: shake .4s; }
+.build-bank { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.tile { font-family: var(--display); font-weight: 800; font-size: clamp(20px, 5vw, 28px); background: #8f78f0; color: #fff; border-radius: 14px; padding: 8px 14px; box-shadow: 0 4px 0 #6b52d6; }
+.build-line .tile { background: #ffe3f1; color: var(--ink); box-shadow: 0 3px 0 #f3b7d3; }
+.tile.used { visibility: hidden; }
+.dot-end { font-family: var(--display); font-weight: 800; font-size: 28px; }
+.build .tb-help { text-align: center; font-weight: 800; color: var(--ink-soft); font-size: 15px; }
 body.kb .q-screen { padding-top: 6px; gap: 6px; }
 body.kb .bots, body.kb .prompt .emo, body.kb .prompt .kind, body.kb .prompt .badge-new, body.kb .typebox .tb-help { display: none; }
 body.kb .prompt { min-height: 0; flex: none; padding: 10px 12px; }
