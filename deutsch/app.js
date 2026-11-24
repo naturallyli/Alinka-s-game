@@ -352,6 +352,76 @@ const GEN = {
   }
 };
 
+// ---------------------------------------------------------------- nombres 1 – 100
+const NUMS = DATA.numbers || null;
+const N_ONE = ['', 'eins', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun'];
+const N_TEEN = ['zehn', 'elf', 'zwölf', 'dreizehn', 'vierzehn', 'fünfzehn', 'sechzehn', 'siebzehn', 'achtzehn', 'neunzehn'];
+const N_TEN = ['', '', 'zwanzig', 'dreissig', 'vierzig', 'fünfzig', 'sechzig', 'siebzig', 'achtzig', 'neunzig'];
+function num2de(n) {
+  if (n === 0) return 'null';
+  if (n === 100) return 'hundert';
+  if (n < 10) return N_ONE[n];
+  if (n < 20) return N_TEEN[n - 10];
+  const t = Math.floor(n / 10), u = n % 10;
+  return u ? (u === 1 ? 'ein' : N_ONE[u]) + 'und' + N_TEN[t] : N_TEN[t];
+}
+function numTip(n) {
+  const t = Math.floor(n / 10), u = n % 10;
+  const special = { 1: '1 = <b>eins</b>, mais 21 = <b>ein</b>undzwanzig.', 16: '16 = <b>sechzehn</b> (sans s : pas « sechszehn »).', 17: '17 = <b>siebzehn</b> (sans « en » : pas « siebenzehn »).', 30: '30 = <b>dreissig</b> (avec ss, pas « dreizig »).', 60: '60 = <b>sechzig</b> (sans s).', 70: '70 = <b>siebzig</b> (sans « en »).', 11: '11 = <b>elf</b> et 12 = <b>zwölf</b> : à apprendre par cœur !', 12: '11 = <b>elf</b> et 12 = <b>zwölf</b> : à apprendre par cœur !', 100: '100 = <b>hundert</b> (ou einhundert).' };
+  if (special[n]) return special[n];
+  if (n > 20 && u) return `${n} = <b>${esc(u === 1 ? 'ein' : N_ONE[u])}</b> + und + <b>${esc(N_TEN[t])}</b> : en allemand, on dit d'abord l'<b>unité</b> (${u}), puis la <b>dizaine</b> (${t * 10}) !` + (u === 6 || u === 7 ? '' : '');
+  if (n > 12 && n < 20) return `${n} = <b>${esc(N_ONE[u])}</b> + <b>zehn</b>.`;
+  if (n % 10 === 0) return 'Les dizaines finissent par <b>-zig</b> : zwanzig, vierzig, fünfzig… (sauf 30 = <b>dreissig</b>).';
+  if (n < 10) return '1 eins · 2 zwei · 3 drei · 4 vier · 5 fünf · 6 sechs · 7 sieben · 8 acht · 9 neun';
+  return `${n} = <b>${esc(num2de(n))}</b>`;
+}
+function numNeighbours(n) {
+  const t = Math.floor(n / 10), u = n % 10, c = [];
+  if (n > 20 && u && u !== t) c.push(u * 10 + t);                // 47 ↔ 74 : le piège !
+  if (n > 12 && n < 20) c.push(u * 10, u * 10 + u);              // 13 ↔ 30 / 33
+  if (n % 10 === 0 && n >= 20 && n < 100) c.push(t + 10);        // 30 ↔ 13
+  c.push(n + 1, n - 1, n + 10, n - 10, n + 2, n - 2, (n + 11) % 100);
+  const out = [];
+  for (const x of c) if (x >= 1 && x <= 100 && x !== n && !out.includes(x)) out.push(x);
+  return [out[0], ...shuffle(out.slice(1))].slice(0, 3);
+}
+function pickNum() {
+  const all = Array.from({ length: (NUMS && NUMS.max) || 100 }, (_, i) => i + 1);
+  return pickW(all, n => boxFactor('z:' + n) * ((n > 10 && n < 20) || n % 10 === 0 || n === 1 || n % 10 === 6 || n % 10 === 7 ? 1.4 : 1), n => 'z:' + n);
+}
+function numBase(n, kindLabel) {
+  return { cat: 'nombres', kindLabel, isNew: !!NUMS && MAXW > 0 && NUMS.week === MAXW, keys: ['z:' + n], say: num2de(n), tip: numTip(n), answerHtml: `${n} = <b>${esc(num2de(n))}</b>`, answerPlain: `${n} = ${num2de(n)}` };
+}
+const bigNum = n => `<div class="emo" style="font-family:var(--display);font-weight:800;color:#8f5bd9;font-size:clamp(70px,20vw,120px)">${n}</div>`;
+Object.assign(GEN, {
+  numPick() {
+    const n = pickNum();
+    return Object.assign(numBase(n, 'En allemand ?'), { html: bigNum(n), layout: 'grid', choices: mc(shuffle([n, ...numNeighbours(n)]).map(num2de)), correct: num2de(n), review: String(n) });
+  },
+  numHear() {
+    const n = pickNum();
+    return Object.assign(numBase(n, 'Écoute !'), { sayAtStart: num2de(n), html: `<button class="say" style="width:96px;height:96px;font-size:48px" data-a="sayq">🔊</button><div class="hint">Écoute bien… quel nombre entends-tu ?</div>`, layout: 'grid', choices: mc(shuffle([n, ...numNeighbours(n)]).map(String)), correct: String(n), review: '🔊 ' + num2de(n) });
+  },
+  numRead() {
+    const n = pickNum();
+    return Object.assign(numBase(n, 'Quel nombre ?'), { html: `<div class="main">${esc(num2de(n))}</div>`, layout: 'grid', choices: mc(shuffle([n, ...numNeighbours(n)]).map(String)), correct: String(n), review: num2de(n) });
+  },
+  numType() {
+    const n = pickNum();
+    return Object.assign(numBase(n, 'Écris le nombre'), { html: bigNum(n) + '<div class="hint">Écris-le en lettres, en allemand !</div>', type: 'type', num: n, accept: num2de(n), placeholder: 'z. B. dreiundzwanzig', review: String(n) });
+  }
+});
+function gradeNum(q, text) {
+  const t = norm(text).toLowerCase().replace(/[\s-]/g, '');
+  if (!t) return { res: false, why: 'Pas de réponse.' };
+  const ok = [num2de(q.num)]; if (q.num === 100) ok.push('einhundert');
+  if (ok.includes(t)) return { res: true };
+  const n = q.num, u = n % 10, tt = Math.floor(n / 10);
+  if (n > 20 && u && t === num2de(u * 10 + tt)) return { res: false, why: `Attention : tu as écrit <b>${u * 10 + tt}</b> ! En allemand, l'unité vient d'abord.` };
+  if (t.replace(/ae/g, 'ä').replace(/oe/g, 'ö').replace(/ue/g, 'ü') === ok[0]) return { res: 'almost', why: 'Presque ! Utilise les touches <b>ä ö ü</b>.' };
+  return { res: false, why: `Tu as écrit : « ${esc(t)} »` };
+}
+
 // ---------------------------------------------------------------- verbes séparables
 const TIMES = [['heute', "Aujourd'hui"], ['morgen', 'Demain']];
 function sepSentence(v, p) {
@@ -388,8 +458,9 @@ Object.assign(GEN, {
     };
     wrong.add(mk([v.sep + sn.f], false));                                   // ich anrufe Lea.
     if (sn.ow.length) wrong.add(mk([sn.f, v.sep], false));                  // ich rufe an Lea.
-    const other = shuffle(v.base.filter(x => x !== sn.f))[0]; if (other) wrong.add(mk([other], true)); // ich ruft Lea an.
+    const other = shuffle(v.base.filter(x => x !== sn.f && !(sn.pr === 'sie' && x === v.base[sn.p === 2 ? 5 : 2])))[0]; if (other) wrong.add(mk([other], true)); // ich ruft Lea an.
     if (sn.time) wrong.add(mk([sn.f], true, true));                         // Heute ich rufe Lea an.
+    if (!sn.ow.length) wrong.add(mk([v.sep, sn.f], false));                 // ich fern sehe.
     wrong.delete(sn.de);
     const opts = shuffle([sn.de, ...shuffle([...wrong]).slice(0, 3)]);
     return Object.assign(sepBase('Choisis la bonne phrase', v, sn), {
@@ -530,8 +601,9 @@ const MODES = {
   articles: { title: 'Articles', sub: 'der · die · das', ic: '🎨', kinds: { art: 1 }, keys: 'a:' },
   verbes: { title: 'Verbes', sub: 'ich, du, er …', ic: '🏃‍♀️', kinds: Object.assign({ conjForm: 5, conjPron: 2, conjType: 2 }, SEPV.length ? { sepPick: 1, sepBuild: 2, sepType: 1 } : {}), keys: 'c:' },
   vocab: { title: 'Vocabulaire', sub: 'mots & orthographe', ic: '📚', kinds: { fr2de: 3, de2fr: 2, emoji: 2, spellPick: 2, spellType: 2 }, keys: 'v:' },
+  nombres: { title: 'Nombres', sub: '1 – 100', ic: '🔢', kinds: { numPick: 3, numHear: 3, numRead: 2, numType: 2 }, keys: 'z:' },
   grammaire: { title: 'Grammaire', sub: 'sein/ihr · im · es gibt · morgen', ic: '🧩', kinds: { gram: 1 }, keys: 'g:' },
-  mix: { title: 'Grand Quiz', sub: 'Un peu de tout !', ic: '🏆', kinds: Object.assign({ art: 3, conjForm: 2, conjPron: 1, conjType: 1, fr2de: 1, de2fr: 1, emoji: 1, spellPick: 1, spellType: 1, gram: 3 }, SEPV.length ? { sepBuild: 1 } : {}) }
+  mix: { title: 'Grand Quiz', sub: 'Un peu de tout !', ic: '🏆', kinds: Object.assign({ art: 3, conjForm: 2, conjPron: 1, conjType: 1, fr2de: 1, de2fr: 1, emoji: 1, spellPick: 1, spellType: 1, gram: 3 }, SEPV.length ? { sepBuild: 1 } : {}, NUMS ? { numPick: 1, numHear: 1 } : {}) }
 };
 function pickKind(mode) {
   const ks = Object.entries(MODES[mode].kinds).filter(([k]) => S.settings.typing || !/Type$/.test(k));
@@ -683,7 +755,7 @@ function submit(value, timeout) {
   G.answered = true; cancelAnimationFrame(G.raf); Music.stop();
   const q = G.q, el = Math.min((performance.now() - G.t0) / 1000, q.time);
   let res, why = '';
-  if (q.type === 'type') { const g = q.sentence ? gradeSentence(q, value || '') : gradeType(q, value || ''); res = g.res; why = g.why || ''; }
+  if (q.type === 'type') { const g = q.sentence ? gradeSentence(q, value || '') : q.num ? gradeNum(q, value || '') : gradeType(q, value || ''); res = g.res; why = g.why || ''; }
   else res = value !== null && value === q.correct;
   if (timeout && (value === null || value === '')) why = 'Temps écoulé ! ⏰';
 
@@ -1028,7 +1100,7 @@ function renderViewer(id) {
 
 // ---------------------------------------------------------------- accueil
 function mastery(prefix) {
-  const keys = prefix === 'a:' ? NOUNS.map(n => 'a:' + n.de) : prefix === 'c:' ? [...VERBS, ...SEPV].map(v => 'c:' + v.inf) : prefix === 'v:' ? VOCAB.map(x => 'v:' + x.id) : RULES.map(r => 'g:' + r.id);
+  const keys = prefix === 'a:' ? NOUNS.map(n => 'a:' + n.de) : prefix === 'c:' ? [...VERBS, ...SEPV].map(v => 'c:' + v.inf) : prefix === 'v:' ? VOCAB.map(x => 'v:' + x.id) : prefix === 'z:' ? Array.from({ length: 100 }, (_, i) => 'z:' + (i + 1)) : RULES.map(r => 'g:' + r.id);
   const pts = keys.reduce((a, k) => a + Math.min((S.stats[k] ? S.stats[k].box : 0), 3), 0);
   return Math.round(100 * pts / (keys.length * 3));
 }
@@ -1038,6 +1110,7 @@ function hasNew(mode) {
   if (mode === 'verbes') return VERBS.some(isNew) || SEPV.some(isNew);
   if (mode === 'vocab') return VOCAB.some(isNew);
   if (mode === 'grammaire') return RULES.some(isNew);
+  if (mode === 'nombres') return !!NUMS && NUMS.week === MAXW;
   return VOCAB.some(isNew) || RULES.some(isNew);
 }
 function renderHome() {
@@ -1054,7 +1127,7 @@ function renderHome() {
       <div><b style="font-family:var(--display);font-size:22px">Hallo ${esc(S.player.name)} !</b><div class="muted" style="font-weight:800;font-size:14px">⭐ ${S.stars} · 🏆 ${S.wins} ${S.wins === 1 ? 'victoire' : 'victoires'}</div></div>
       <div class="spacer"></div><button class="gear" data-a="mute">${S.settings.sound ? '🔊' : '🔇'}</button><button class="gear" id="gear">⚙️<span class="ring"></span></button></div>
     <div class="hero">${mascot()}<h1>Deutsch Party</h1><p>Choisis ton jeu !</p></div>
-    <div class="modes">${['articles', 'verbes', 'vocab', 'grammaire', 'mix'].map(modeBtn).join('')}</div>
+    <div class="modes">${['articles', 'verbes', 'vocab', 'grammaire', 'nombres', 'mix'].map(modeBtn).join('')}</div>
     <div class="home-bottom">
       <button class="tile ${n ? 'glow' : ''}" data-a="pending"><span class="ic">🎨</span><span>${n ? `${plural(n, 'dessin', 'dessins')} à faire !` : 'Gagne pour dessiner !'}</span></button>
       <button class="tile" data-a="gallery"><span class="ic">🖼️</span><span>Mes dessins${S.drawings ? ` (${S.drawings})` : ''}</span></button>

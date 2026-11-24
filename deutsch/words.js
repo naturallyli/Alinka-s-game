@@ -20,7 +20,7 @@ window.DE_DATA = {
     { week: 0, label: "Depuis la rentrée (Lektion 7 : Mein Haus, meine Stadt)" },
     { week: 1, label: "Semaine 1 : la semaine, les jours, l'école" },
     { week: 2, label: "Semaine 2 : les matières, les devoirs, finden" },
-    { week: 3, label: "Semaine 3 : les verbes séparables (anrufen …)" }
+    { week: 3, label: "Semaine 3 : Lektion 8 (Meine Woche, In der Schule), verbes séparables, nombres 1–100" }
   ],
 
   nouns: [
@@ -79,8 +79,12 @@ window.DE_DATA = {
     { de: "Abend", art: "der", pl: null, fr: "le soir", emoji: "🌆", week: 2, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
     { de: "Fach", art: "das", pl: "Fächer", fr: "la matière (à l'école)", emoji: "📐", week: 2, loc: null },
     // --- Semaine 2 : l'école
-    { de: "Stunde", art: "die", pl: "Stunden", fr: "l'heure, la leçon", frf: true, emoji: "⏰", week: 2, loc: null },
-    { de: "Hausaufgabe", art: "die", pl: "Hausaufgaben", fr: "le devoir (les devoirs)", emoji: "📝", week: 2, loc: null }
+    { de: "Stunde", art: "die", pl: "Stunden", fr: "l'heure", frf: true, emoji: "⏰", week: 2, loc: null },
+    { de: "Hausaufgabe", art: "die", pl: "Hausaufgaben", fr: "le devoir", emoji: "📝", week: 2, loc: null },
+    // --- Semaine 3 : Lektion 8
+    { de: "Nachmittag", art: "der", pl: null, fr: "l'après-midi", emoji: "🌇", week: 3, loc: null, tip: "Les jours et les moments de la journée sont <b class=\"der\">der</b>." },
+    { de: "Stundenplan", art: "der", pl: "Stundenpläne", fr: "l'emploi du temps", emoji: "🗓️", week: 3, loc: null, tip: "Le dernier mot décide : <b class=\"der\">der Plan</b> → <b class=\"der\">der Stundenplan</b>." },
+    { de: "Pause", art: "die", pl: "Pausen", fr: "la récréation", emoji: "🔔", week: 3, loc: null }
   ],
 
   verbs: [
@@ -91,7 +95,9 @@ window.DE_DATA = {
     { inf: "sitzen",   fr: "être assis/e",       frAct: "est assis",  frActF: "est assise", emoji: "💺", week: 0, forms: ["sitze", "sitzt", "sitzt", "sitzen", "sitzt", "sitzen"] },
     { inf: "lesen",    fr: "lire",               frAct: "lit un livre",      emoji: "📖", week: 0, forms: ["lese", "liest", "liest", "lesen", "lest", "lesen"] },
     { inf: "gehen",    fr: "aller",              frAct: "se promène",        emoji: "🚶", week: 0, forms: ["gehe", "gehst", "geht", "gehen", "geht", "gehen"], ctx: ["zu Fuss zur Schule", "zu Fuss in den Park"] },
-    { inf: "finden",   fr: "trouver (penser)",   frAct: "trouve ça génial",  emoji: "🤔", week: 2, forms: ["finde", "findest", "findet", "finden", "findet", "finden"], ctx: ["Musik toll", "Sport lustig", "Englisch langweilig", "die Hausaufgabe blöd", "Kunst toll", "Sachunterricht langweilig"] }
+    { inf: "finden",   fr: "trouver",   frAct: "trouve ça génial",  emoji: "🤔", week: 2, forms: ["finde", "findest", "findet", "finden", "findet", "finden"], ctx: ["Musik toll", "Sport lustig", "Englisch langweilig", "die Hausaufgabe blöd", "Kunst toll", "Sachunterricht langweilig", "Französisch klasse", "Mathematik toll"] },
+    { inf: "möchten",  fr: "vouloir",            frAct: "veut un gâteau",    emoji: "🙏", week: 3, forms: ["möchte", "möchtest", "möchte", "möchten", "möchtet", "möchten"], ctx: ["ein Haus", "einen Garten", "ein Bett", "nach Hause gehen"] },
+    { inf: "kosten",   fr: "coûter",             frAct: "coûte cher",        emoji: "💰", week: 3, forms: ["koste", "kostest", "kostet", "kosten", "kostet", "kosten"] }
   ],
 
   // Verbes séparables : la particule (sep) va à la fin de la phrase.
@@ -102,8 +108,35 @@ window.DE_DATA = {
     { inf: "anrufen", sep: "an", fr: "appeler (au téléphone)", emoji: "📞", week: 3,
       base: ["rufe", "rufst", "ruft", "rufen", "ruft", "rufen"],
       frForms: ["appelle", "appelles", "appelle", "appelons", "appelez", "appellent"],
-      objs: [["Lea", "Lea"], ["Mama", "maman"], ["Papa", "papa"], ["Tom", "Tom"], ["Oma", "mamie"]] }
+      objs: [["Lea", "Lea"], ["Mama", "maman"], ["Papa", "papa"], ["Tom", "Tom"], ["Oma", "mamie"], ["die Eltern", "les parents"]] },
+    { inf: "zurückgeben", sep: "zurück", fr: "rendre", emoji: "📚", week: 3,
+      base: ["gebe", "gibst", "gibt", "geben", "gebt", "geben"],
+      frForms: ["rends", "rends", "rend", "rendons", "rendez", "rendent"],
+      objs: [["die Hefte", "les cahiers"], ["die Hausaufgaben", "les devoirs"], ["das Bild", "l'image"]] },
+    { inf: "zuhören", sep: "zu", fr: "écouter", emoji: "👂", week: 3,
+      base: ["höre", "hörst", "hört", "hören", "hört", "hören"],
+      frForms: ["écoute", "écoutes", "écoute", "écoutons", "écoutez", "écoutent"],
+      objs: [["", ""], ["gut", "bien"]] },
+    { inf: "aufräumen", sep: "auf", fr: "ranger", emoji: "🧹", week: 3,
+      base: ["räume", "räumst", "räumt", "räumen", "räumt", "räumen"],
+      frForms: ["range", "ranges", "range", "rangeons", "rangez", "rangent"],
+      objs: [["das Klassenzimmer", "la salle de classe"], ["das Zimmer", "la chambre"], ["die Küche", "la cuisine"], ["das Kinderzimmer", "la chambre des enfants"]] },
+    { inf: "fernsehen", sep: "fern", fr: "regarder la télé", emoji: "📺", week: 3,
+      base: ["sehe", "siehst", "sieht", "sehen", "seht", "sehen"],
+      frForms: ["regarde", "regardes", "regarde", "regardons", "regardez", "regardent"],
+      objs: [["", "la télé"]] },
+    { inf: "einkaufen", sep: "ein", fr: "acheter qc., faire les courses", emoji: "🛒", week: 3,
+      base: ["kaufe", "kaufst", "kauft", "kaufen", "kauft", "kaufen"],
+      frForms: ["fais", "fais", "fait", "faisons", "faites", "font"],
+      objs: [["", "les courses"]] },
+    { inf: "abholen", sep: "ab", fr: "aller chercher qn./qc.", emoji: "🚗", week: 3,
+      base: ["hole", "holst", "holt", "holen", "holt", "holen"],
+      frForms: ["vais chercher", "vas chercher", "va chercher", "allons chercher", "allez chercher", "vont chercher"],
+      objs: [["Lea", "Lea"], ["Tom", "Tom"], ["Mama", "maman"], ["die Kinder", "les enfants"]] }
   ],
+
+  // Nombres 1 – 100 (jeu « Nombres »)
+  numbers: { week: 3, max: 100 },
 
   // Autres mots (adjectifs, petites phrases) : seulement dans « Vocabulaire »
   words: [
@@ -125,15 +158,26 @@ window.DE_DATA = {
     { de: "heute", fr: "aujourd'hui", emoji: null, week: 1 },
     { de: "morgen", fr: "demain", emoji: null, week: 1 },
     { de: "Englisch", fr: "l'anglais", emoji: "🇬🇧", week: 2 },
-    { de: "nach Hause gehen", fr: "rentrer à la maison", emoji: "🏡", week: 2 },
+    { de: "nach Hause gehen", fr: "aller à la maison", emoji: "🏡", week: 2 },
     // --- Semaine 2 : les matières (sans article, comme sur la fiche)
     { de: "Musik", fr: "la musique", emoji: "🎵", week: 2 },
-    { de: "Kunst", fr: "les arts visuels (le dessin)", emoji: "🎨", week: 2 },
+    { de: "Kunst", fr: "l'art", emoji: "🎨", week: 2 },
     { de: "Sport", fr: "le sport (la gym)", emoji: "⚽", week: 2 },
-    { de: "Sachunterricht", fr: "les sciences (la découverte du monde)", emoji: "🔬", week: 2 },
-    { de: "Ich habe frei.", fr: "Je suis libre. (pas d'école)", emoji: "🎉", week: 2 },
-    { de: "blöd", fr: "bête, nul/le", emoji: "🙄", week: 2 },
-    { de: "langweilig", fr: "ennuyeux, ennuyeuse", emoji: "🥱", week: 2 }
+    { de: "Sachunterricht", fr: "les sciences (S.V.T. et sciences humaines)", emoji: "🔬", week: 2 },
+    { de: "Ich habe frei.", fr: "Je suis libre.", emoji: "🎉", week: 2 },
+    { de: "blöd", fr: "bête", emoji: "🙄", week: 2 },
+    { de: "langweilig", fr: "ennuyant/e", emoji: "🥱", week: 2 },
+    // --- Semaine 3 : Lektion 8
+    { de: "Deutsch", fr: "l'allemand", emoji: "🇩🇪", week: 3 },
+    { de: "Mathematik", fr: "les mathématiques", emoji: "➗", week: 3 },
+    { de: "klasse", fr: "super", emoji: "👍", week: 3 },
+    { de: "einmal", fr: "une fois (1 x)", emoji: null, week: 3 },
+    { de: "zweimal", fr: "deux fois (2 x)", emoji: null, week: 3 },
+    { de: "Das macht Spass.", fr: "C'est amusant.", emoji: "😄", week: 3 },
+    { de: "Was ist dein Lieblingsfach?", fr: "Quelle est ta matière préférée ?", emoji: "💖", week: 3 },
+    { de: "Was hast du erste Stunde?", fr: "Qu'est-ce que tu as en première heure ?", emoji: "⏰", week: 3 },
+    { de: "Wie findest du Französisch?", fr: "Comment trouves-tu le français ?", emoji: "🤔", week: 3 },
+    { de: "Wie viel kostet das?", fr: "Combien ça coûte ?", emoji: "💰", week: 3 }
   ],
 
   // Règles de grammaire (le code de chaque règle est dans app.js)
