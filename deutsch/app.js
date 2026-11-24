@@ -130,13 +130,22 @@ function utter(text, lang) {
   return u;
 }
 // pre = petite phrase gentille en français dite avant la réponse allemande
+const canSpeak = () => S.settings.speak && 'speechSynthesis' in window;
 function speak(text, pre) {
-  if (!S.settings.speak || !('speechSynthesis' in window) || !text) return;
+  if (!canSpeak() || !text) return;
   try {
-    speechSynthesis.cancel();
-    if (pre) speechSynthesis.speak(utter(pre, 'fr'));
-    speechSynthesis.speak(utter(text.replace(/_+/g, ''), 'de'));
+    const synth = window.speechSynthesis;
+    const go = () => { try { synth.resume(); if (pre) synth.speak(utter(pre, 'fr')); synth.speak(utter(text.replace(/_+/g, ''), 'de')); } catch (e) { /* pas de voix */ } };
+    // iPhone/iPad : parler juste après cancel() est parfois ignoré → petite pause
+    if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(go, 150); } else go();
   } catch (e) { /* pas de voix */ }
+}
+// iPhone/iPad : la voix doit être « réveillée » par un premier toucher
+let speechUnlocked = false;
+function unlockSpeech() {
+  if (speechUnlocked || !('speechSynthesis' in window)) return;
+  speechUnlocked = true;
+  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { /* rien */ }
 }
 const KIND = ['Pas grave ! La bonne réponse, c\'est :', 'Ce n\'est pas grave, on apprend ! C\'est :', 'Presque ! Écoute bien :', 'Pas de souci ! On dit :'];
 const KIND_ALMOST = ['Presque ! Bravo, c\'est :', 'Tu y es presque ! C\'est :'];
@@ -606,7 +615,7 @@ const MODES = {
   mix: { title: 'Grand Quiz', sub: 'Un peu de tout !', ic: '🏆', kinds: Object.assign({ art: 3, conjForm: 2, conjPron: 1, conjType: 1, fr2de: 1, de2fr: 1, emoji: 1, spellPick: 1, spellType: 1, gram: 3 }, SEPV.length ? { sepBuild: 1 } : {}, NUMS ? { numPick: 1, numHear: 1 } : {}) }
 };
 function pickKind(mode) {
-  const ks = Object.entries(MODES[mode].kinds).filter(([k]) => S.settings.typing || !/Type$/.test(k));
+  const ks = Object.entries(MODES[mode].kinds).filter(([k]) => (S.settings.typing || !/Type$/.test(k)) && (k !== 'numHear' || canSpeak()));
   return pickW(ks, x => x[1])[0];
 }
 
@@ -668,8 +677,8 @@ function nextQ() {
   });
   renderQuestion();
   G.t0 = performance.now(); G.lastSec = -1;
-  Music.start();
-  if (q.sayAtStart) setTimeout(() => speak(q.sayAtStart), 250);
+  if (!q.sayAtStart) Music.start();   // pas de musique quand il faut écouter
+  if (q.sayAtStart) setTimeout(() => speak(q.sayAtStart), 400);
   G.raf = requestAnimationFrame(tick);
 }
 function renderQuestion() {
@@ -1214,7 +1223,9 @@ async function exportData() {
 }
 
 // ---------------------------------------------------------------- clics
+document.addEventListener('pointerdown', unlockSpeech, { passive: true });
 app.addEventListener('click', e => {
+  unlockSpeech();
   const b = e.target.closest('[data-a]'); if (!b) return;
   const a = b.dataset.a;
   Snd.init();
@@ -1230,8 +1241,8 @@ app.addEventListener('click', e => {
     case 'bok': if (G && !G.answered) { if (G.build.length < G.q.tiles.length) { const bl = $('#bl'); bl.classList.remove('empty'); void bl.offsetWidth; bl.classList.add('empty'); toast('Utilise tous les mots 🙂'); } else submit(builtText()); } break;
     case 'ans': if (!G || G.answered) return; G.chosen = b.dataset.i; submit(G.q.choices[+b.dataset.i].value); break;
     case 'next': if (G && G.answered) nextQ(); break;
-    case 'say': if (G && G.q) speak(G.q.say); break;
-    case 'sayq': if (G && G.q) speak(G.q.sayAtStart); break;
+    case 'say': if (G && G.q) { Music.stop(); speak(G.q.say); } break;
+    case 'sayq': if (G && G.q) { Music.stop(); speak(G.q.sayAtStart); } break;
     case 'sayidea': speak(b.dataset.t); break;
     case 'mute': S.settings.sound = !S.settings.sound; save(); renderHome(); break;
     case 'avatar': renderAvatar(); break;
