@@ -73,9 +73,10 @@ function record(key, res) {
 const Snd = {
   ctx: null,
   init() {
+    playThroughSilentSwitch();
     try {
       if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) this.ctx = new AC(); }
-      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx && this.ctx.state !== 'running') this.ctx.resume();
     } catch (e) { /* pas de son */ }
   },
   tone(freq, dur, type = 'sine', vol = 0.15, when = 0) {
@@ -140,13 +141,29 @@ function speak(text, pre) {
     if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(go, 150); } else go();
   } catch (e) { /* pas de voix */ }
 }
-// iPhone/iPad : la voix doit être « réveillée » par un premier toucher
-let speechUnlocked = false;
-function unlockSpeech() {
-  if (speechUnlocked || !('speechSynthesis' in window)) return;
-  speechUnlocked = true;
-  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { /* rien */ }
+// iPhone/iPad en mode silencieux : les sons du jeu sont coupés. On demande au système de les jouer
+// comme une vidéo (iOS 17+ : audioSession), sinon on joue un petit son muet en boucle (ancienne astuce).
+let silentFixDone = false, silentEl = null;
+function silentWav() {
+  const n = 4000, b = new ArrayBuffer(44 + n), v = new DataView(b);
+  const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
 }
+function playThroughSilentSwitch() {
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) { /* rien */ }
+  if (silentFixDone && silentEl && !silentEl.paused) return;
+  silentFixDone = true;
+  if (navigator.audioSession) return;
+  try {
+    if (!silentEl) { silentEl = document.createElement('audio'); silentEl.src = silentWav(); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); silentEl.setAttribute('x-webkit-airplay', 'deny'); }
+    const pr = silentEl.play(); if (pr && pr.catch) pr.catch(() => { silentFixDone = false; });
+  } catch (e) { silentFixDone = false; }
+}
+document.addEventListener('visibilitychange', () => { if (silentEl) { if (document.hidden) silentEl.pause(); else silentFixDone = false; } });
+function unlockSpeech() { Snd.init(); }
 const KIND = ['Pas grave ! La bonne réponse, c\'est :', 'Ce n\'est pas grave, on apprend ! C\'est :', 'Presque ! Écoute bien :', 'Pas de souci ! On dit :'];
 const KIND_ALMOST = ['Presque ! Bravo, c\'est :', 'Tu y es presque ! C\'est :'];
 
@@ -1191,6 +1208,7 @@ function renderParent() {
       <div class="set"><label>Sons</label>${seg('sound', [[true, 'Oui'], [false, 'Non']], s.sound)}</div>
       <div class="set"><label>Musique pendant les questions</label>${seg('music', [[true, 'Oui'], [false, 'Non']], s.music)}</div>
       <div class="set"><label>Voix allemande</label>${seg('speak', [[true, 'Oui'], [false, 'Non']], s.speak)}</div>
+      <div class="set"><label>Tester le son et la voix</label><button class="btn soft" data-a="soundtest" style="font-size:16px;padding:8px 14px">🔊 Test</button></div>
       <p class="muted" style="font-size:14px;font-weight:700">« Auto » : les adversaires s'adaptent au niveau récent (${Math.round(recentAcc() * 100)} % de bonnes réponses) pour qu'elle gagne souvent, mais pas toujours.</p>
     </div>
     <h3>Résumé</h3>
@@ -1242,6 +1260,13 @@ app.addEventListener('click', e => {
     case 'ans': if (!G || G.answered) return; G.chosen = b.dataset.i; submit(G.q.choices[+b.dataset.i].value); break;
     case 'next': if (G && G.answered) nextQ(); break;
     case 'say': if (G && G.q) { Music.stop(); speak(G.q.say); } break;
+    case 'soundtest': {
+      Snd.init(); const was = S.settings.sound; S.settings.sound = true; Snd.good(); S.settings.sound = was;
+      const ok = 'speechSynthesis' in window, n = ok ? speechSynthesis.getVoices().filter(v => /^de/i.test(v.lang)).length : 0;
+      const wasSp = S.settings.speak; S.settings.speak = true; speak('Hallo ' + S.player.name + '! Das macht Spass.'); S.settings.speak = wasSp;
+      toast(ok ? (n ? '🎵 Petite mélodie + voix allemande…' : '⚠️ Pas de voix allemande trouvée sur cet appareil') : '⚠️ Cet appareil ne peut pas parler');
+      break;
+    }
     case 'sayq': if (G && G.q) { Music.stop(); speak(G.q.sayAtStart); } break;
     case 'sayidea': speak(b.dataset.t); break;
     case 'mute': S.settings.sound = !S.settings.sound; save(); renderHome(); break;
